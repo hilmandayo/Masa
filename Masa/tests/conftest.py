@@ -1,11 +1,13 @@
 """Define the necessary fixtures that will need to be used globally."""
 
+from collections import namedtuple
 from pathlib import Path
 import uuid
 
 from PySide2 import QtCore as qtc
 import pytest
 
+from .utils import DummyAnnotationsFactory
 
 
 @pytest.fixture(name="dcpf", autouse=True, scope="session")
@@ -69,22 +71,20 @@ def empty_annotations_dir(empty_data_id_dir):
     return ann
 
 
-@pytest.fixture(scope="function")
-def dummy_data(empty_data_dir):
-    data = create_dummy_data(empty_data_dir)
+# Annotations and binaries test data ##########################################
 
-    return empty_data_dir.parent, data
+simple_anno = DummyAnnotationsFactory.get_annotations("simple_anno")
+@pytest.fixture(name="s_anno_rl", scope="session",
+                params=simple_anno.data)
+def simple_raw_annotations_loop(request):
+    return simple_anno.head, request.param
 
+@pytest.fixture(name="s_anno_rli", scope="session",
+                params=simple_anno.data_per_instance)
+def simple_raw_annotations_loop_per_instance(request):
+    return simple_anno.head, request.param
 
-@pytest.fixture(scope="function")
-def dummy_annotations(empty_annotations_dir):
-    raw_data, data_file = create_dummy_annotations(empty_annotations_dir)
-
-    return raw_data, data_file, empty_annotations_dir.parent
-
-
-@pytest.fixture(scope="function")
-def dummy_data_id_dir(empty_data_dir):
-    data = create_dummy_data(empty_data_dir)
-
-    return empty_data_dir.parent, data
+AnnotationsSet = namedtuple("AnnotationsSet", "file head data")
+@pytest.fixture(name="s_anno_rf",scope="function")
+def simple_raw_annotations_file(empty_annotations_dir):
+    return AnnotationsSet(simple_anno.create_file(empty_annotations_dir), simple_anno.head, simple_anno.data)

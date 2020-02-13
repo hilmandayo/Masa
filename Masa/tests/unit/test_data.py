@@ -1,28 +1,52 @@
-from Masa.core.datahandler import TrackObject
+from Masa.core.datahandler import TrackedObject
 import pytest
 
 
-@pytest.mark.parametrize(
-    "data_collection",
-    [[[0, 37, 854, 200, 918, 230, "red_traffic_light", "large"]],
-     [[1, 44, 738, 274, 778, 302, "yellow_traffic_light", "far"]],
-     [[2, 48, 760, 268, 830, 300, "red_traffic_light", "middle"],
-      [2, 45, 622, 240, 662, 258, "red_traffic_light", "small"]]
-     ]
-)
-def test_track_object(data_collection):
+def test_TO_single_instances_init(s_anno_rl):
+    """Test whether `TrackedObject` can be properly instantiate."""
+    # Get only the first data
+    head, anno = s_anno_rl
+
+    # Preprocess the data. We already know that only `track_id` and
+    # `object_class` will need to be passed directly.
+    # Anything else will be handled as `instance`.
+    instance = {}
+    for i, h in enumerate(head):
+        if h not in ["track_id", "object"]:
+            instance[h] = anno[i]
+
+    tracked = TrackedObject(track_id=anno[head.index("track_id")],
+                            object_class=anno[head.index("object")],
+                            instance=instance)
+
+@pytest.mark.skip
+def test_TO_multiple_instances_init(s_anno_rli):
+    pass
+
+
+# TODO: Make this into class that check everything on instances
+def test_TO_add_instances(s_anno_rli):
+    # TODO: Improve this
+    head, data = s_anno_rli
     tracked = None
-    for i, data in enumerate(data_collection, 1):
-        track_id, frame_id, x1, y1, x2, y2, object_class, view = data
-        out = {"view": view, "x1": x1, "y1": y1, "x2": x2, "y2": y2}
+    for d in data:
+        track_id = d.pop(head.index("track_id"))
+        object_class = d.pop(head.index("object"))
         if tracked is None:
-            tracked = TrackObject(track_id=track_id, object_class=object_class,
-                                  instance=out)
+            tracked = TrackedObject(track_id, object_class, d)
         else:
-            tracked.add_instance(out)
+            tracked.add_instance(d)
 
-    assert i == len(tracked.instances)
+    assert len(tracked) == len(data)
 
 
-def test_indexing(dummy_annotations):
-    raw_data, data_file, _ = dummy_annotations
+def test_s_tobjs_iter(s_tobjs):
+    for tobj in s_tobjs:
+        assert isinstance(tobj, TrackedObject)
+
+
+def test_change_tobjs_track_id():
+    pass
+
+def test_TO_init():
+    pass
