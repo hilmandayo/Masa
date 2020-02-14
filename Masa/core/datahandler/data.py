@@ -28,14 +28,6 @@ class TrackedObject:
     def add_instance(self, instance: dir):
         self.instances.append(instance)
 
-    def dict_instance(self, index):
-        instance = self.__getitem__[index]
-        instance_dict["track_id"] = self.track_id
-        instance_dict["object_class"] = self.object_class
-        instance_dict.update(instance)
-
-        return instance_dict
-
     def to_dict(self):
         instances = []
         for instance in self.instances:
@@ -51,7 +43,12 @@ class TrackedObject:
         self.track_id = track_id
 
     def __getitem__(self, index):
-        return self.instances[index]
+        instance = self.instances[index]
+        tracked_obj = {}
+        tracked_obj["track_id"] = self.track_id
+        tracked_obj["object_class"] = self.object_class
+
+        return {"tracked_obj": tracked_obj, "instance": instance}
 
     def __iter__(self):
         self._iter = iter(self.instances)
@@ -59,17 +56,19 @@ class TrackedObject:
         return self
 
     def __next__(self):
-        try:
-            val = next(self._iter)
-        except StopIteration:
-            raise StopIteration()
-
         if self._iter_idx is None:
             self._iter_idx = 0
         else:
             self._iter_idx += 1
 
-        val = {key: getattr(self, key) for key in self._fixed}.update(val)
+        try:
+            val = self.__getitem__(self._iter_idx)
+        except IndexError:
+            raise StopIteration
+
+        # TODO: Check why below do not work
+        # val = {key: getattr(self, key) for key in self._fixed}.update(val)
+
         return val
 
     def __len__(self):

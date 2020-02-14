@@ -30,6 +30,6 @@ def make_tracked_objects():
 
     return tobjs
 
-@pytest.fixture(name="s_tobjs", scope="function", params=make_tracked_objects())
-def simple_tracked_objects(request):
+@pytest.fixture(name="l_stobj", scope="function", params=make_tracked_objects())
+def simple_tracked_object_loop(request):
     return request.param

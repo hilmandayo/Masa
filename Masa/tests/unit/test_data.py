@@ -40,13 +40,24 @@ def test_TO_add_instances(s_anno_rli):
     assert len(tracked) == len(data)
 
 
-def test_s_tobjs_iter(s_tobjs):
-    for tobj in s_tobjs:
+def test_s_tobjs_iter(l_stobj):
+    for tobj in l_stobj:
         assert isinstance(tobj, TrackedObject)
 
 
-def test_change_tobjs_track_id():
-    pass
+def test_change_tobjs_track_id(l_stobj):
+    dummy_val = "dummy_val"
+    for i, instance in enumerate(l_stobj):
+        ins = instance["instance"]
+        ins["object_class"] = dummy_val
 
+        assert l_stobj[i]["instance"]["object_class"] == dummy_val
+
+
+@pytest.mark.skip
 def test_TO_init():
     pass
+
+
+# def test_instance():
+#     Instance(tags)
