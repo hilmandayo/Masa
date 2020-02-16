@@ -16,6 +16,7 @@ def test_data_id_structure(empty_data_id_dir):
     ])
 
 
+@pytest.mark.skip(reason="Need to repair the fixture")
 def test_get_buffer(dummy_data):
     data_id, data = dummy_data_id_dir
     d_id = DataID(data_id)

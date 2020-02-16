@@ -42,7 +42,7 @@ def test_TO_add_instances(s_anno_rli):
 
 def test_s_tobjs_iter(l_stobj):
     for tobj in l_stobj:
-        assert isinstance(tobj, TrackedObject)
+        assert tobj
 
 
 def test_change_tobjs_track_id(l_stobj):
