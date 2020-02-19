@@ -15,6 +15,7 @@ class TrackedObject:
 
     A single object might have multiple instances.
     """
+    # TODO: Rename `track_id` to `object_id`
     track_id: int
     object_class: str
     instance: dict = field(repr=False)
@@ -65,9 +66,6 @@ class TrackedObject:
             val = self.__getitem__(self._iter_idx)
         except IndexError:
             raise StopIteration
-
-        # TODO: Check why below do not work
-        # val = {key: getattr(self, key) for key in self._fixed}.update(val)
 
         return val
 
