@@ -9,6 +9,7 @@ import numpy as np
 
 
 class DummyAnnotationsFactory:
+    """A factory that returns certain mock annotations data."""
     @staticmethod
     def get_annotations(name):
         if name == "simple_anno":
@@ -24,30 +25,46 @@ class DummyAnnotations:
     """
 
 class SimpleAnnotationsF:
-    @staticmethod
-    def data():
-        return [
-            [0, 31, 500, 176, 564, 206, "road_scene", "red_traffic_light", "small"],
-            [0, 35, 558, 118, 638, 158, "road_scene", "red_traffic_light", "middle"],
-            [0, 37, 854, 200, 918, 230, "road_scene", "red_traffic_light", "large"],
-            [1, 44, 738, 274, 778, 302, "road_scene", "yellow_traffic_light", "far"],
-            [2, 45, 622, 240, 662, 258, "road_scene", "red_traffic_light", "small"],
-            [2, 48, 760, 268, 830, 300, "road_scene", "red_traffic_light", "middle"],
-            [2, 50, 714, 170, 792, 208, "road_scene", "red_traffic_light", "large"],
-            [3, 46, 758, 380, 796, 404, "road_scene", "red_traffic_light", "small"],
-            [3, 47, 1010, 288, 1060, 314, "road_scene", "red_traffic_light", "middle"],
-            [3, 48, 388, 246, 450, 282, "road_scene", "red_traffic_light", "large"],
-            [4, 55, 678, 372, 708, 384, "road_scene", "red_traffic_light", "far"],
-            [4, 58, 560, 354, 602, 384, "road_scene", "red_traffic_light", "far"],
-            [5, 70, 834, 338, 888, 372, "road_scene", "red_traffic_light", "far"],
-            ]
+    """A class that provide simple annotations data.
 
+    This class acts as a wrapper that holds all data that will then be provided
+    to `SimpleAnnotations` class (the `F` means factory).
+    """
     @staticmethod
-    def head():
+    def head() -> List[str]:
+        """Output the keys of the data.
+
+        This mocks the header of a CSV file.
+        """
         return "track_id frame_id x1 y1 x2 y2 scene object view".split()
 
     @staticmethod
-    def data_per_instance():
+    def data() -> List[List[Union[int, str]]]:
+        """Output the data mocking the contents of a CSV file.
+
+        Each column represents the data as defined in `head()`.
+        """
+        # TODO: Make it better
+        return [
+            [0, 31, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
+            [0, 35, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
+            [0, 37, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
+            [1, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
+            [2, 45, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
+            [2, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
+            [2, 50, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
+            [3, 46, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
+            [3, 47, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
+            [3, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
+            [4, 55, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
+            [4, 58, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
+            [5, 70, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
+            ]
+
+    @staticmethod
+    # TODO: Correct return data format?
+    def data_per_instance() -> List[List[List[Union[int, str]]]]:
+        """Returns list of data, but with each list is grouped as a same instance."""
         # TODO: Make it more robust in terms of csv head order
         if SimpleAnnotationsF.head()[0] != "track_id":
             raise ValueError(f"The first element of `head` is not `track_id`: "
@@ -61,6 +78,7 @@ class SimpleAnnotationsF:
         for k, v in inter_data.items():
             ret_data.append(v)
 
+        # print(ret_data)
         return ret_data
 
 
@@ -94,7 +112,12 @@ class SimpleAnnotations(DummyAnnotations):
 
     def create_file(self, empty_annotations_dir: Path,
                     file_name: str = "annotations.csv") -> Path:
-        """Create the data into the empty annotations directory"""
+        """Write data into the empty annotations directory.
+
+        If the provided `file_name` in `empty_annotations_dir` is already
+        created, it will be overwritten. This is to mock a file (mainly CSV)
+        written on the disk.
+        """
         data_file = empty_annotations_dir / file_name
         if data_file.exists(): data_file.unlink()
 

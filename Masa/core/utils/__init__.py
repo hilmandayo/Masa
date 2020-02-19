@@ -1,1 +1,1 @@
-from .utils import create_dirs
+from .utils import create_dirs, np_to_pixmap
