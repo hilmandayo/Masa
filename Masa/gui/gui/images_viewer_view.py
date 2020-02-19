@@ -2,17 +2,19 @@ from typing import Dict
 import sys
 import numpy as np
 import cv2
-import imutils
 
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 
+# For local testing.
 try:
-    from Masa.core.datahandler import FrameInfo
-    from Masa.core.utils import np_to_pixmap
-except ModuleNotFoundError:
+    # Prevent circular import
+    from .image_button import ImageButton
+except (ModuleNotFoundError, ImportError):
     sys.path.append("../../../")
-    from Masa.core.datahandler import FrameInfo
-    from Masa.core.utils import np_to_pixmap
+    from image_button import ImageButton
+from Masa.core.datahandler import FrameInfo
+from Masa.core.utils import convert_np
+from Masa.core.utils import resize
 
 
 class ImagesViewerView(qtw.QWidget):
@@ -58,24 +60,26 @@ class ImagesViewerView(qtw.QWidget):
         # idx, frame, x1, y1, x2, y2 = args
         # XXX: this is designed to be the same as in the viewer
         cv2.rectangle(data.frame, (data.x1, data.y1), (data.x2, data.y2), (0, 0, 255), 2)
-        frame = imutils.resize(data.frame, width=240)
+        # frame = imutils.resize(data.frame, width=240)
+        frame = resize(data.frame, width=240)
 
-        if isinstance(data.frame, np.ndarray):
-            height, width = data.frame.shape[:2]
-            frame = np_to_pixmap(frame)
-            frame_icon = qtg.QIcon()
-            frame_icon.addPixmap(frame)
+        # if isinstance(data.frame, np.ndarray):
+        #     height, width = data.frame.shape[:2]
+        #     frame = convert_np(frame)
+        #     frame_icon = qtg.QIcon()
+        #     frame_icon.addPixmap(frame)
 
         track_id = str(data.track_id)
         if not track_id in self._idx_map.keys():
             self._make_new_row(track_id)
 
-        frame_btn = qtw.QPushButton()
-        frame_btn.setIcon(frame_icon)
-        frame_btn.setIconSize(qtc.QSize(width, height))
-        frame_btn.setFixedSize(width, height)
+        # frame_btn = qtw.QPushButton()
+        # frame_btn.setIcon(frame_icon)
+        # frame_btn.setIconSize(qtc.QSize(width, height))
+        # frame_btn.setFixedSize(width, height)
         # frame_btn.clicked.connect(lambda: self.send_info(idx))
-        self._append_to_row(track_id, data.tag, frame_btn)
+        image_btn = ImageButton(data.frame)
+        self._append_to_row(track_id, data.tag, image_btn)
 
     def _make_new_row(self, row_label):
         if self._idx is None:
@@ -107,7 +111,7 @@ if __name__ == "__main__":
 
     frame_info = FrameInfo(
         frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
-        label="Test"
+        object_class="Test", frame_id=1, track_id=0, tag="tekitou"
     )
 
     imgs_viewer.add_to_row(frame_info)
@@ -116,7 +120,7 @@ if __name__ == "__main__":
 
     frame_info = FrameInfo(
         frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
-        label="Test2"
+        object_class="Test2", frame_id=1, track_id=1, tag="tekitou"
     )
 
     imgs_viewer.add_to_row(frame_info)

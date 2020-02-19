@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Union
 import numpy as np
 
-from PySide2 import QtGui as qtg
+from PySide2 import QtGui as qtg, QtWidgets as qtw
 import cv2
 
 
@@ -35,7 +35,8 @@ def delete_dirs(dirs: Union[list, str]):
     pass
 
 
-def np_to_pixmap(frame: np.ndarray, scale=True, input_bgr=True):
+def convert_np(frame: np.ndarray, to: str = "qpixmap", scale: bool = True,
+               input_bgr: bool = True) -> Union[qtg.QPixmap, qtw.QGraphicsPixmapItem]:
     # https://stackoverflow.com/questions/34232632/convert-python-opencv-image-numpy-array-to-pyqt-qpixmap-image
     frame = np.require(frame, np.uint8, "C")
     height, width, channel = frame.shape
@@ -47,7 +48,10 @@ def np_to_pixmap(frame: np.ndarray, scale=True, input_bgr=True):
     if scale:
         frame = frame.scaled(width, height)
 
-    return frame
+    if to == "qpixmap":
+        return frame
+    elif to == "qpixmapitem":
+        return qtw.QGraphicsPixmapItem(frame)
 
 
 def resize(frame, width=None, height=None, ratio: bool = True,
@@ -66,7 +70,7 @@ def resize(frame, width=None, height=None, ratio: bool = True,
     if ratio:
         if width:
             ratio = width / orig_width
-            height = int(frame.height * ratio)
+            height = int(orig_height * ratio)
         elif heigth:
             ratio = height / orig_height
             width = int(orig_width * ratio)

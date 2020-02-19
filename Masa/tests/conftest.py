@@ -8,7 +8,7 @@ from PySide2 import QtCore as qtc
 import numpy as np
 import pytest
 
-from .utils import DummyAnnotationsFactory, DummyBufferFactory
+from .utils import DummyAnnotationsFactory, DummyBufferFactory, GUIFactory
 from Masa.core.datahandler import TrackedObject
 from Masa.core.datahandler import FrameInfo
 
@@ -206,3 +206,13 @@ def simple_finfo():
         frame_infos.append(fi)
 
     return frame_infos
+
+
+# GUI #########################################################################
+@pytest.fixture(name="gui_imgb")
+def gui_image_button(qtbot):
+    image = np.zeros([240, 240, 3], np.uint8)
+    imgb = GUIFactory.get_gui("image_button", image)
+    imgb.show()
+    qtbot.add_widget(imgb)
+    return imgb
