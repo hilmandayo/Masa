@@ -15,7 +15,7 @@ import cv2
 
 
 class BufferRenderView(qtw.QGraphicsView):
-    """A QGraphicsView for video raw buffer rendering and object selection."""
+    """A QGraphicsView for raw buffer rendering and object selection."""
     pass_rect_coords = qtc.Signal(tuple)
     set_class_name = qtc.Signal(str)
 
@@ -40,7 +40,6 @@ class BufferRenderView(qtw.QGraphicsView):
         self.class_name = []
         # self.menu = TextInputMenu(self.class_name, parent=self)
 
-
     def _set_attributes(self):
         """Set internal attributes of the view."""
         self.setAlignment(qtc.Qt.AlignTop | qtc.Qt.AlignLeft)
@@ -50,13 +49,13 @@ class BufferRenderView(qtw.QGraphicsView):
         self.setAcceptDrops(True)
         self.setScene(qtw.QGraphicsScene())
 
-    def np_to_pixmapitem(self, frame, autoset=True):
-        height, width = frame.shape[:2]
-        frame = np.require(frame, np.uint8, "C")
-        frame = qtg.QPixmap.fromImage(qtg.QImage(frame, width, height, qtg.QImage.Format_RGB888).rgbSwapped())
-        frame = qtw.QGraphicsPixmapItem(frame)
+    # def np_to_pixmapitem(self, frame, autoset=True):
+    #     height, width = frame.shape[:2]
+    #     frame = np.require(frame, np.uint8, "C")
+    #     frame = qtg.QPixmap.fromImage(qtg.QImage(frame, width, height, qtg.QImage.Format_RGB888).rgbSwapped())
+    #     frame = qtw.QGraphicsPixmapItem(frame)
 
-        return frame
+    #     return frame
 
     def set_frame(self, frame: np.ndarray = None, rect=None):
         if frame is not None:
@@ -157,10 +156,18 @@ class BufferRenderView(qtw.QGraphicsView):
 
 if __name__ == '__main__':
     import sys
+    import time
 
+    width = 240
+    height = 240
     app = qtw.QApplication(sys.argv)
-    main = BufferRenderView(width=240, height=240)
+    main = BufferRenderView(width=width, height=height)
 
     main.show()
+
+    for i in np.zeros([100, width, height, 3], np.uint8):
+        main.set_frame(i)
+
+    main.set_frame(np.full([height, width, 3], 155, dtype=np.uint8))
 
     sys.exit(app.exec_())

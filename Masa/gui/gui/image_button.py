@@ -3,17 +3,17 @@ import numpy as np
 
 # For local testing.
 try:
-    from Masa.core.utils import np_to_pixmap
+    from Masa.core.utils import convert_np
 except ModuleNotFoundError:
     import sys
     sys.path.append("../../../")
-    from Masa.core.utils import np_to_pixmap
+    from Masa.core.utils import convert_np
 
 class ImageButton(qtw.QPushButton):
     def __init__(self, image: np.ndarray, parent=None):
         super().__init__(parent=parent)
         height, width = image.shape[:2]
-        image = np_to_pixmap(image)
+        image = convert_np(image, to="qpixmap")
         frame_icon = qtg.QIcon()
         frame_icon.addPixmap(image)
 

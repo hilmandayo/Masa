@@ -54,6 +54,28 @@ def convert_np(frame: np.ndarray, to: str = "qpixmap", scale: bool = True,
         return qtw.QGraphicsPixmapItem(frame)
 
 
+def resize_calculator(orig_width, orig_height,
+                      target_width=None, target_height=None, ratio=True):
+    if ratio:
+        if target_width:
+            ratio = target_width / orig_width
+            target_height = int(orig_height * ratio)
+        elif target_height:
+            ratio = target_height / orig_height
+            target_width = int(orig_width * ratio)
+        else:
+            raise ValueError(f"Both `width` and `height` is not provided "
+                              "while `ratio` is True")
+    else:
+        if not target_width:
+            target_width = orig_width
+        if not target_height:
+            target_height = orig_height
+
+    return target_width, target_height
+
+
+
 def resize(frame, width=None, height=None, ratio: bool = True,
            inter=cv2.INTER_CUBIC):
     """Resize frame.
@@ -67,20 +89,8 @@ def resize(frame, width=None, height=None, ratio: bool = True,
         If `width` and `height` is not provided when `ratio` is `True`.
     """
     orig_height, orig_width = frame.shape[:2]
-    if ratio:
-        if width:
-            ratio = width / orig_width
-            height = int(orig_height * ratio)
-        elif heigth:
-            ratio = height / orig_height
-            width = int(orig_width * ratio)
-        else:
-            raise ValueError(f"Both `width` and `height` is not provided "
-                              "while `ratio` is True")
-    else:
-        if not width:
-            width = orig_width
-        if not height:
-            height = orig_height
+    width, height = resize_calculator(
+        orig_width, orig_height, target_width=width, target_height=height, ratio=ratio
+    )
 
     return cv2.resize(frame, (width, height), interpolation=inter)

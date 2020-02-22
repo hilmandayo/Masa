@@ -5,7 +5,9 @@ import time
 from PySide2 import QtCore as qtc
 import cv2
 import numpy as np
-# from .algorithm import EpipolarTrack
+
+from Masa.core.utils import resize_calculator
+from Masa.core.datahandler import FrameInfo
 
 
 class Buffer(qtc.QThread):
@@ -17,13 +19,13 @@ class Buffer(qtc.QThread):
     `run_result`:
     """
 
-    run_result = qtc.Signal([tuple], [int])
+    run_result = qtc.Signal(FrameInfo)
     video_ended = qtc.Signal(int)
     backwarded = qtc.Signal(bool)
     buffer_rect = qtc.Signal(tuple)
 
-    def __init__(self, video: Union[Path, str], parent=None, width=None, height=None,
-                 backward=False, session=None, fps=60, **kwargs):
+    def __init__(self, video: Union[Path, str],  target_width=None, target_height=None, parent=None,
+                 ratio=True, backward=False, fps=60, **kwargs):
         super().__init__(parent=parent, **kwargs)
 
         self.play = False
@@ -32,23 +34,34 @@ class Buffer(qtc.QThread):
         self.idx = None
         self.prev_idx = -1
         self.prev_idx = None
-        self.width = width
-        self.height = height
         # self.session = EpipolarTrack()
         self.backward = backward
         self.run_thread = True
         self.fps = fps
+        self._det_width_height(target_width, target_height, ratio)
+
+    def _det_width_height(self, width, height, ratio):
+        ret, frame = self.video.read()
+        if not ret:
+            raise Exception()
+
+        self.orig_height, self.orig_width = frame.shape[:2]
+        self.width, self.height = resize_calculator(
+            self.orig_width, self.orig_height, width, height, ratio=ratio
+        )
+        self.ratio = ratio
+        self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     def play_pause_toggle(self):
         if self.play:
-            self.pause()
+            self.to_pause()
         else:
-            self.play()
+            self.to_play()
 
-    def play(self):
+    def to_play(self):
         self.play = True
 
-    def pause(self):
+    def to_pause(self):
         self.play = False
 
     def stop(self, video_ended=False):
@@ -89,7 +102,7 @@ class Buffer(qtc.QThread):
             return
 
         if self.width and self.height:
-            frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+            frame = cv2.resize(frame, (self.width,  self.height), interpolation=cv2.INTER_AREA)
         return frame
 
     def update_index(self):
@@ -158,9 +171,10 @@ class Buffer(qtc.QThread):
                 # self.run_result[tuple].emit(
                 #     (self.frame, self.idx, x1, y1, x2, y2)
                 # )
-                # self.run_result[int].emit(self.idx)
+                f_info = FrameInfo(frame, 1, 1, 1, 1, "dummy", self.idx, 2)
+                self.run_result.emit(f_info)
 
-                time.sleep(1 / fps) # fps
+                time.sleep(1 / self.fps) # fps
             time.sleep(0.1)
 
     def stop_thread(self):

@@ -1,1 +1,1 @@
-from .gui import ImageButton, ImagesViewersDockView, ImagesViewerView
+from .gui import ImageButton, ImagesViewersDockView, ImagesViewerView, BufferRenderView
