@@ -26,7 +26,7 @@ class VideoPlayerView(qtw.QWidget):
         self._set_layouts()
         self._init()
 
-        self.show()
+        # self.show()
 
     def _set_widgets(self):
         self.video_view = BufferRenderView(width=self.width, height=self.height)
@@ -90,16 +90,18 @@ class VideoPlayerView(qtw.QWidget):
 
     def set_data(self, f_info):
         f = f_info
-        frame, idx, x1, y1, x2, y2 = f_info.frame, f.frame_id, f.x1, f.y1, f.x2, f.y2
+        # frame, idx, x1, y1, x2, y2 = f_info.frame, f.frame_id, f.x1, f.y1, f.x2, f.y2
+        frame, idx = f_info.frame, f.frame_id
         rect = None
-        if isinstance(x1, float):
-            height, width = frame.shape[:2]
-            x1, y1 =int(x1 * width), int(y1 * height)
-            x2, y2 =int(x2 * width), int(y2 * height)
-            # f = frame[y1:y2 + 1, x1:x2 + 1]
-        self.run_result.emit((idx, frame, x1, y1, x2, y2))
-        rect = (x1, y1, x2, y2)
-        self.video_view.set_frame(frame, rect=rect)
+        for d in f_info.data:
+            if isinstance(x1, float):
+                height, width = frame.shape[:2]
+                x1, y1 =int(x1 * width), int(y1 * height)
+                x2, y2 =int(x2 * width), int(y2 * height)
+                # f = frame[y1:y2 + 1, x1:x2 + 1]
+            self.run_result.emit((idx, frame, x1, y1, x2, y2))
+            rect = (x1, y1, x2, y2)
+            self.video_view.set_frame(frame, rect=rect)
 
 if __name__ == "__main__":
     import sys

@@ -1,6 +1,6 @@
 import sys
 from PySide2 import QtWidgets as qtw
-from Masa.gui.widgets import VideoPlayer
+from Masa.gui import VideoPlayer
 
 
 if __name__ == "__main__":

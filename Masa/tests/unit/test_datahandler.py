@@ -28,6 +28,15 @@ def test_iter_dh(s_anno_rf):
     dh = DataHandler(s_anno_rf.file)
     assert all(isinstance(to, TrackedObject) for to in dh)
 
+
+# Manually calculated
+@pytest.mark.parametrize("frame_id, n_ins", [(31, 1), (48, 2)])
+def test_index_frame(s_anno_rf, frame_id, n_ins):
+    dh = DataHandler(s_anno_rf.file)
+    out = dh.from_frame(frame_id)
+    assert len(out) == n_ins
+
+
 class TestBasicInterface:
     pass
 

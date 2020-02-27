@@ -1,11 +1,14 @@
 from PySide2 import QtWidgets as qtw
 
 try:
-    from Masa.gui import VideoPlayerView
+    from ..views.video_player_view import VideoPlayerView
     from Masa.models import Buffer
     from Masa.core.utils import resize_calculator
-except (ModuleNotFoundError, ImportError):
-    from ..gui.video_player_view import VideoPlayerView
+except ValueError:
+    import sys
+    from pathlib import Path; _dir = Path(__file__).absolute().parent
+    sys.path.append(str(_dir.parent / "views"))
+    from video_player_view import VideoPlayerView
 
 
 class VideoPlayer(qtw.QWidget):
@@ -15,10 +18,14 @@ class VideoPlayer(qtw.QWidget):
 
         self.buffer = Buffer(video, target_width=width, target_height=height, ratio=ratio, fps=fps)
         self.buffer.start()
-        self.view = VideoPlayerView(width=self.buffer.width, height=self.buffer.height)
 
-        self.view.slider.setMaximum(self.buffer.n_frames - 1)
-        self.view.slider.sliderMoved.connect(self.buffer.get_frame)  # TODO: Pause is automatically
+        self.layout_grid_main = qtw.QGridLayout()
+        self.view = VideoPlayerView(width=self.buffer.width, height=self.buffer.height)
+        self.layout_grid_main.addWidget(self.view, 0, 0)
+        self.setLayout(self.layout_grid_main)
+
+        self.view.slider.setMaximum(self.buffer.n_frames - 1) # 0-indexed
+        self.view.slider.sliderMoved.connect(self.buffer.get_frame)  # TODO: Pause automatically
 
         self.view.play_pause.connect(self.buffer.play_pause_toggle)
         # self.buff.video_ended.connect(viewer.toggle_btn)

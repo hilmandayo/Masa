@@ -4,6 +4,7 @@ from typing import Union, List, Dict
 import csv
 
 from .data import TrackedObject
+from .data_wrapper import FrameInfo
 
 
 @dataclass
@@ -37,6 +38,7 @@ class DataHandler:
             for instance in csv_reader:
                 track_id = int(instance.pop("track_id"))
                 object_class = instance.pop("object")  # TEMP: Repair this
+                instance["frame_id"] = int(float(instance["frame_id"]))
                 if self.tracked_objs.get(track_id) is None:
                     self.tracked_objs[track_id] = TrackedObject(
                         track_id=track_id, object_class=object_class,
@@ -51,6 +53,24 @@ class DataHandler:
         self._iter = iter(self.tracked_objs)
         self._iter_idx = None
         return self
+
+    def from_frame(self, frame_id, to: str = None):
+        ret = []
+        for tobj in self.tracked_objs.values():
+            ins = []
+            for instance in tobj:
+                if instance.frame_id == frame_id:
+                    ins.append(instance)
+            if ins:
+                ret.append(ins)
+
+        if to:
+            if to.lower() == "frameinfo":
+                ret = FrameInfo.from_instances(frame_id, ret)
+            else:
+                raise ValueError(f"Cannot understand of type {type(to)}")
+
+        return ret
 
     def __next__(self):
         try:

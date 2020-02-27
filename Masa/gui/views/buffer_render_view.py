@@ -14,7 +14,6 @@ except (ImportError, ModuleNotFoundError):
     from utils import convert_np
     sys.path.append(str(_dir.parent / "widgets"))
     from graphics_rect_item import GraphicsRectItem
-# import pymagextractor.models.sessions as sess  # TEMP: Use `DataHandler` only
 
 
 class BufferRenderView(qtw.QGraphicsView):

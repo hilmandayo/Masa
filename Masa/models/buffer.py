@@ -7,7 +7,9 @@ import cv2
 import numpy as np
 
 from Masa.core.utils import resize_calculator
-from Masa.core.datahandler import FrameInfo
+from Masa.core.datahandler import FrameInfo, FrameData
+from Masa.core.datahandler import Instance
+from .session import BBSession
 
 
 class Buffer(qtc.QThread):
@@ -39,6 +41,11 @@ class Buffer(qtc.QThread):
         self.run_thread = True
         self.fps = fps
         self._det_width_height(target_width, target_height, ratio)
+
+        # temp
+        from Masa.core.datahandler import DataHandler
+        self.dh = DataHandler("/dayo/sompo/nikaime/all_csvs/ishida/0000000002_20170814_152603_001.csv")
+        self.sessions = [BBSession(self.dh)]
 
     def _det_width_height(self, width, height, ratio):
         ret, frame = self.video.read()
@@ -162,17 +169,12 @@ class Buffer(qtc.QThread):
                 else:
                     self.frame = frame
 
-                # EpipolarTrack ###################################################
-                # ret = self.session.run(self.frame, self.idx)
-                # if ret:
-                #     x1, y1, x2, y2 = ret
-                # else:
-                #     x1, y1, x2, y2 = None, None, None, None
-                # self.run_result[tuple].emit(
-                #     (self.frame, self.idx, x1, y1, x2, y2)
-                # )
-                f_info = FrameInfo(frame, 1, 1, 1, 1, "dummy", self.idx, 2)
-                self.run_result.emit(f_info)
+                # for session in self.session: session()
+
+                fi = self.dh.from_frame(self.idx, to="frameinfo")
+                fi.frame = self.frame
+
+                self.run_result.emit(fi)
 
                 time.sleep(1 / self.fps) # fps
             time.sleep(0.1)

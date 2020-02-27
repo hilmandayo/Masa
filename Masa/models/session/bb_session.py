@@ -1,9 +1,18 @@
-from .session import Session
+import cv2
+
+try:
+    from .session import Session
+except:
+    import sys; from pathlib import Path
+    _dir = Path(__file__).parent
+    sys.path.append(str(_dir))
+    from session import Session
 
 class BBSession(Session):
-    def __init__(self, backward: bool = True):
+    def __init__(self, data_handler, backward: bool = True):
         super().__init__()
         self.backward = backward
+        self.data_handler = data_handler
 
     def __call__(self, frame, index):
         self.run()
@@ -14,7 +23,7 @@ class BBSession(Session):
 
 if __name__ == "__main__":
     vid = cv2.VideoCapture("/home/hilman_dayo/Documents/epipolar_track/video.mp4")
-    algo = Algorithm("epipolar_data.txt")
+    algo = BBSession()
 
     while True:
         _, frame = vid.read()
