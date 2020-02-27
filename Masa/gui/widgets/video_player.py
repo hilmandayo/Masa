@@ -1,8 +1,11 @@
 from PySide2 import QtWidgets as qtw
 
-from Masa.gui.gui import VideoPlayerView
-from Masa.models import Buffer
-from Masa.core.utils import resize_calculator
+try:
+    from Masa.gui import VideoPlayerView
+    from Masa.models import Buffer
+    from Masa.core.utils import resize_calculator
+except (ModuleNotFoundError, ImportError):
+    from ..gui.video_player_view import VideoPlayerView
 
 
 class VideoPlayer(qtw.QWidget):

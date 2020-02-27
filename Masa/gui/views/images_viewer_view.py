@@ -1,17 +1,18 @@
 from typing import Dict
-import sys
 import numpy as np
 import cv2
 
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 
-# For local testing.
+# error when testing done in this module
 try:
-    # Prevent circular import
-    from .image_button import ImageButton
-except (ModuleNotFoundError, ImportError):
-    sys.path.append("../../../")
+    from ..widgets.image_button import ImageButton
+except (ValueError):
+    import sys
+    from pathlib import Path; _dir = Path(__file__).absolute().parent
+    sys.path.append(str(_dir.parent / "widgets"))
     from image_button import ImageButton
+    sys.path.append(str("_dir.parent.parent.parent"))
 from Masa.core.datahandler import FrameInfo
 from Masa.core.utils import convert_np
 from Masa.core.utils import resize
@@ -106,26 +107,27 @@ class ImagesViewerView(qtw.QWidget):
 #             self.form_layout.removeRow(0)
 
 if __name__ == "__main__":
+
     app = qtw.QApplication(sys.argv)
     imgs_viewer = ImagesViewerView()
 
-    frame_info = FrameInfo(
-        frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
-        object_class="Test", frame_id=1, track_id=0, tag="tekitou"
-    )
+    # frame_info = FrameInfo(
+    #     frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
+    #     object_class="Test", frame_id=1, track_id=0, tag="tekitou"
+    # )
 
-    imgs_viewer.add_to_row(frame_info)
-    imgs_viewer.add_to_row(frame_info)
-    imgs_viewer.add_to_row(frame_info)
+    # imgs_viewer.add_to_row(frame_info)
+    # imgs_viewer.add_to_row(frame_info)
+    # imgs_viewer.add_to_row(frame_info)
 
-    frame_info = FrameInfo(
-        frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
-        object_class="Test2", frame_id=1, track_id=1, tag="tekitou"
-    )
+    # frame_info = FrameInfo(
+    #     frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
+    #     object_class="Test2", frame_id=1, track_id=1, tag="tekitou"
+    # )
 
-    imgs_viewer.add_to_row(frame_info)
-    imgs_viewer.add_to_row(frame_info)
-    imgs_viewer.add_to_row(frame_info)
+    # imgs_viewer.add_to_row(frame_info)
+    # imgs_viewer.add_to_row(frame_info)
+    # imgs_viewer.add_to_row(frame_info)
 
     imgs_viewer.show()
     sys.exit(app.exec_())

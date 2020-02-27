@@ -1,1 +1,3 @@
-from .gui import ImageButton, ImagesViewersDockView, ImagesViewerView, BufferRenderView
+from .views import (ImagesViewersDockView, ImagesViewerView,
+                   BufferRenderView, VideoPlayerView)
+from .widgets import ImageButton, GraphicsRectItem

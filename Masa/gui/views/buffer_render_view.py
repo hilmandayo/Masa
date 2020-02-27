@@ -1,16 +1,19 @@
 from functools import partial
 
 from PySide2 import (QtCore as qtc, QtGui as qtg, QtWidgets as qtw)
+import cv2
+import numpy as np
 # from .text_input import TextInputMenu
 try:
-#     from viewer.gui import GraphicsRectItem
     from Masa.core.utils import convert_np
+    from Masa.gui import GraphicsRectItem
 except (ImportError, ModuleNotFoundError):
-    import sys; sys.path.append("../../../")
-    from Masa.core.utils import convert_np
-#     from . import GraphicsRectItem
-import numpy as np
-import cv2
+    import sys
+    from pathlib import Path; _dir = Path(__file__).absolute().parent
+    sys.path.append(str(_dir.parent.parent / "core" / "utils"))
+    from utils import convert_np
+    sys.path.append(str(_dir.parent / "widgets"))
+    from graphics_rect_item import GraphicsRectItem
 # import pymagextractor.models.sessions as sess  # TEMP: Use `DataHandler` only
 
 
@@ -49,14 +52,6 @@ class BufferRenderView(qtw.QGraphicsView):
         self.setAcceptDrops(True)
         self.setScene(qtw.QGraphicsScene())
 
-    # def np_to_pixmapitem(self, frame, autoset=True):
-    #     height, width = frame.shape[:2]
-    #     frame = np.require(frame, np.uint8, "C")
-    #     frame = qtg.QPixmap.fromImage(qtg.QImage(frame, width, height, qtg.QImage.Format_RGB888).rgbSwapped())
-    #     frame = qtw.QGraphicsPixmapItem(frame)
-
-    #     return frame
-
     def set_frame(self, frame: np.ndarray = None, rect=None):
         if frame is not None:
             self.frame = frame.copy()
@@ -73,16 +68,16 @@ class BufferRenderView(qtw.QGraphicsView):
         frame = convert_np(self.frame, to="qpixmapitem")
         self.scene().addItem(frame)
 
-    # def update_frame(self):
-    #     # get our image...
-    #     self.scene().clear()
-    #     self.set_frame()
+    def update_frame(self):
+        # get our image...
+        self.scene().clear()
+        self.set_frame()
 
-    #     if self.draw_box:
-    #         x1, y1 = self.bb_top_left.x(), self.bb_top_left.y()
-    #         width, height = self.bb_bottom_right.x() - x1, self.bb_bottom_right.y() - y1
-    #         self.current_selection = GraphicsRectItem(x1, y1, width, height)
-    #         self.scene().addItem(self.current_selection)
+        if self.draw_box:
+            x1, y1 = self.bb_top_left.x(), self.bb_top_left.y()
+            width, height = self.bb_bottom_right.x() - x1, self.bb_bottom_right.y() - y1
+            self.current_selection = GraphicsRectItem(x1, y1, width, height)
+            self.scene().addItem(self.current_selection)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
@@ -117,7 +112,7 @@ class BufferRenderView(qtw.QGraphicsView):
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
-        self.menu.exec_(qtg.QCursor.pos())  # This will block
+        # self.menu.exec_(qtg.QCursor.pos())  # This will block
 
         if self.class_name:
             self.set_class_name.emit(self.class_name[0])
