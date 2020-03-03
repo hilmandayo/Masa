@@ -4,16 +4,16 @@ import cv2
 
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 
-# error when testing done in this module
 try:
-    from ..widgets.image_button import ImageButton
-except (ValueError):
+    # relative import to prevent circular import error
+    from ...widgets.image_button import ImageButton
+except (ValueError, ImportError):
     import sys
     from pathlib import Path; _dir = Path(__file__).absolute().parent
-    sys.path.append(str(_dir.parent / "widgets"))
+    sys.path.append(str(_dir.parent.parent / "widgets"))
     from image_button import ImageButton
-    sys.path.append(str("_dir.parent.parent.parent"))
-from Masa.core.datahandler import FrameInfo
+    sys.path.append(str(_dir.parent.parent.parent.parent))
+from Masa.core.datahandler import FrameData
 from Masa.core.utils import convert_np
 from Masa.core.utils import resize
 
@@ -57,7 +57,7 @@ class ImagesViewerView(qtw.QWidget):
 #     def sizeHint(self):
 #         return qtc.QSize(600, 600)
 
-    def add_to_row(self, data: FrameInfo):
+    def add_to_row(self, data: FrameData):
         # idx, frame, x1, y1, x2, y2 = args
         # XXX: this is designed to be the same as in the viewer
         cv2.rectangle(data.frame, (data.x1, data.y1), (data.x2, data.y2), (0, 0, 255), 2)
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)
     imgs_viewer = ImagesViewerView()
 
-    # frame_info = FrameInfo(
+    # frame_info = FrameData(
     #     frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
     #     object_class="Test", frame_id=1, track_id=0, tag="tekitou"
     # )
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # imgs_viewer.add_to_row(frame_info)
     # imgs_viewer.add_to_row(frame_info)
 
-    # frame_info = FrameInfo(
+    # frame_info = FrameData(
     #     frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
     #     object_class="Test2", frame_id=1, track_id=1, tag="tekitou"
     # )

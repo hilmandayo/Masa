@@ -1,4 +1,4 @@
-from Masa.core.datahandler import FrameInfo
+from Masa.core.datahandler import FrameData
 import numpy as np
 
 
@@ -13,7 +13,7 @@ def test_frame_info(s_anno_rl):
     frame = np.zeros([30, 30, 3])
     frame_id = data[head.index("frame_id")]
     track_id = data[head.index("track_id")]
-    frame_info = FrameInfo(
+    frame_info = FrameData(
         frame=frame, x1=x1, y1=y1, x2=x2, y2=y2,
         object_class=object_class, tag=tag,
         frame_id=frame_id, track_id=track_id

@@ -6,11 +6,11 @@ import imutils
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 try:
     from .images_viewer_view import ImagesViewerView
-    from Masa.core.datahandler import FrameInfo
+    from Masa.core.datahandler import FrameData
 except (ModuleNotFoundError, ImportError):
     sys.path.append("../../../")
     from images_viewer_view import ImagesViewerView
-    from Masa.core.datahandler import FrameInfo
+    from Masa.core.datahandler import FrameData
 
 
 class ImagesViewersDockView(qtw.QDockWidget):
@@ -68,7 +68,7 @@ class ImagesViewersDockView(qtw.QDockWidget):
         self.main_layout.addWidget(img_viewer)
         self._images_viewers[group] = img_viewer
 
-    def add_data(self, data: FrameInfo):
+    def add_data(self, data: FrameData):
         if data.object_class not in self._images_viewers.keys():
             raise ValueError()
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     for i in range(3):
         frame_info = []
         for j in range(3):
-            frame_info.append(FrameInfo(
+            frame_info.append(FrameData(
                 frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
                 object_class="Test", tag="Big", frame_id=19, track_id=i
             ))
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     imgs_viewer2 = ImagesViewerView()
     f_infos = []
     for i in range(3):
-        frame_info = FrameInfo(
+        frame_info = FrameData(
             frame=np.zeros([69, 121, 3], np.uint8), x1=11, y1=11, x2=22, y2=22,
             object_class="Test2", tag="Big", frame_id=19, track_id=i
         )

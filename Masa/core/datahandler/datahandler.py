@@ -4,7 +4,7 @@ from typing import Union, List, Dict
 import csv
 
 from .data import TrackedObject
-from .data_wrapper import FrameInfo
+from .data_wrapper import FrameData
 
 
 @dataclass
@@ -32,13 +32,26 @@ class DataHandler:
 
     def _read_from_csv(self):
         """Read data from CSV."""
+        to_number = ["x1", "x2", "y1", "y2", "frame_id"]
         with self.input_file.open(mode="r") as f_csv:
             csv_reader = csv.DictReader(f_csv)
             line_count = 0
             for instance in csv_reader:
                 track_id = int(instance.pop("track_id"))
                 object_class = instance.pop("object")  # TEMP: Repair this
-                instance["frame_id"] = int(float(instance["frame_id"]))
+                for key in to_number:
+                    if key == "frame_id":
+                        instance[key] = int(float(instance["frame_id"]))
+                    else:
+                        # the numbers could be of type `int` of `float`
+                        try:
+                            instance[key] = int(instance[key])
+                        except ValueError:
+                            try:
+                                instance[key] = float(instance[key])
+                            except ValueError as v:
+                                raise v(f"Cannot convert data of key {key}"
+                                        "to `int` of `float`.")
                 if self.tracked_objs.get(track_id) is None:
                     self.tracked_objs[track_id] = TrackedObject(
                         track_id=track_id, object_class=object_class,
@@ -54,6 +67,20 @@ class DataHandler:
         self._iter_idx = None
         return self
 
+    @property
+    def frames(self):
+        frames = set()
+        for tobj in self.tracked_objs.values():
+            for instance in tobj:
+                frames.add(instance.frame_id)
+        return sorted(list(frames))
+
+
+    @property
+    def object_classes(self):
+        pass
+
+
     def from_frame(self, frame_id, to: str = None):
         ret = []
         for tobj in self.tracked_objs.values():
@@ -62,11 +89,11 @@ class DataHandler:
                 if instance.frame_id == frame_id:
                     ins.append(instance)
             if ins:
-                ret.append(ins)
+                ret.extend(ins)
 
         if to:
             if to.lower() == "frameinfo":
-                ret = FrameInfo.from_instances(frame_id, ret)
+                ret = FrameData.from_instances(frame_id, ret)
             else:
                 raise ValueError(f"Cannot understand of type {type(to)}")
 

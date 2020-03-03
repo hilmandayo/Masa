@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 from Masa.core.utils import resize_calculator
-from Masa.core.datahandler import FrameInfo, FrameData
+from Masa.core.datahandler import FrameData
 from Masa.core.datahandler import Instance
 from .session import BBSession
 
@@ -21,7 +21,7 @@ class Buffer(qtc.QThread):
     `run_result`:
     """
 
-    run_result = qtc.Signal(FrameInfo)
+    run_result = qtc.Signal(FrameData)
     video_ended = qtc.Signal(int)
     backwarded = qtc.Signal(bool)
     buffer_rect = qtc.Signal(tuple)
@@ -30,8 +30,12 @@ class Buffer(qtc.QThread):
                  ratio=True, backward=False, fps=60, **kwargs):
         super().__init__(parent=parent, **kwargs)
 
-        self.play = False
         self.video = cv2.VideoCapture(video)
+        if not self.video.isOpened():
+            raise ValueError(f"Problem in opening file {str(video)}. "
+                             "Are you sure the path is valid?")
+
+        self.play = False
         self.n_frames = int(self.video.get(cv2.CAP_PROP_FRAME_COUNT))
         self.idx = None
         self.prev_idx = -1
@@ -44,13 +48,20 @@ class Buffer(qtc.QThread):
 
         # temp
         from Masa.core.datahandler import DataHandler
-        self.dh = DataHandler("/dayo/sompo/nikaime/all_csvs/ishida/0000000002_20170814_152603_001.csv")
+        # self.dh = DataHandler("/dayo/sompo/nikaime/all_csvs/ishida/0000000002_20170814_152603_001.csv")
+        self.dh = DataHandler("/dayo/sompo/nikaime/results/intermediate_output/intemediate_output_final/0000000004_20181112_150211_001.csv")
         self.sessions = [BBSession(self.dh)]
 
     def _det_width_height(self, width, height, ratio):
+        """Determine the width and height of the video.
+
+        It is manually checked (instead of using `cv2.VideoCapture.get`)
+        to prevent subtle bugs.
+        """
         ret, frame = self.video.read()
         if not ret:
-            raise Exception()
+            raise ValueError(f"Problem in opening file {str(video)}. "
+                             "Are you sure the path is valid?")
 
         self.orig_height, self.orig_width = frame.shape[:2]
         self.width, self.height = resize_calculator(

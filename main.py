@@ -5,7 +5,7 @@ from Masa.gui import VideoPlayer
 
 if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)
-    default = VideoPlayer("/dayo/sompo/nikaime/douga_raw/NEW_mp4/0000000001_20130101_210023_001.mp4",
+    default = VideoPlayer("/home/hilman_dayo/Documents/youtube_videos/to_seki_with_takumi/IMG_1973.MOV",
                           width=640)
     default.show()
 

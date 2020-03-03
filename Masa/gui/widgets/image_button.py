@@ -5,9 +5,10 @@ import numpy as np
 try:
     from Masa.core.utils import convert_np
 except ModuleNotFoundError:
-    import sys
-    sys.path.append("../../../")
-    from Masa.core.utils import convert_np
+    import sys;
+    from pathlib import Path; _dir = Path(__file__).absolute().parent
+    sys.path.append(str(_dir.parent.parent / "core" / "utils"))
+    from utils import convert_np
 
 class ImageButton(qtw.QPushButton):
     def __init__(self, image: np.ndarray, parent=None):

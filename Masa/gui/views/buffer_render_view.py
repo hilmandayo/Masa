@@ -3,6 +3,7 @@ from functools import partial
 from PySide2 import (QtCore as qtc, QtGui as qtg, QtWidgets as qtw)
 import cv2
 import numpy as np
+from Masa.core.datahandler import FrameData
 # from .text_input import TextInputMenu
 try:
     from Masa.core.utils import convert_np
@@ -51,18 +52,18 @@ class BufferRenderView(qtw.QGraphicsView):
         self.setAcceptDrops(True)
         self.setScene(qtw.QGraphicsScene())
 
-    def set_frame(self, frame: np.ndarray = None, rect=None):
-        if frame is not None:
-            self.frame = frame.copy()
+    def set_data(self, f_data: FrameData):
+        if f_data.frame is not None:
+            self.frame = f_data.frame.copy()
 
-        # XXX: not good
-        if rect:
-            x1, y1, x2, y2 = rect
-            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-        elif self.rect:
-            x1, y1, x2, y2 = self.rect
-            self.rect = None
-            cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        # # XXX: not good
+        # if rect:
+        #     x1, y1, x2, y2 = rect
+        #     cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        # elif self.rect:
+        #     x1, y1, x2, y2 = self.rect
+        #     self.rect = None
+        #     cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
         frame = convert_np(self.frame, to="qpixmapitem")
         self.scene().addItem(frame)
@@ -70,7 +71,7 @@ class BufferRenderView(qtw.QGraphicsView):
     def update_frame(self):
         # get our image...
         self.scene().clear()
-        self.set_frame()
+        # self.set_data()
 
         if self.draw_box:
             x1, y1 = self.bb_top_left.x(), self.bb_top_left.y()
@@ -152,16 +153,17 @@ if __name__ == '__main__':
     import sys
     import time
 
-    width = 240
-    height = 240
+    width = 640
+    height = 540
     app = qtw.QApplication(sys.argv)
     main = BufferRenderView(width=width, height=height)
 
     main.show()
 
-    for i in np.zeros([100, width, height, 3], np.uint8):
-        main.set_frame(i)
+    # for i in np.zeros([100, width, height, 3], np.uint8):
+    #     main.set_data(i)
 
-    main.set_frame(np.full([height, width, 3], 155, dtype=np.uint8))
+    main.set_data(np.full([height, width, 3], 155, dtype=np.uint8))
+    print(main.size())
 
     sys.exit(app.exec_())

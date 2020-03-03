@@ -1,4 +1,6 @@
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
+
+from Masa.core.datahandler import FrameData
 try:
     from .buffer_render_view import BufferRenderView
 except (ImportError, ModuleNotFoundError):
@@ -7,15 +9,18 @@ import numpy as np
 
 
 class VideoPlayerView(qtw.QWidget):
-    """The interface where everything connected together."""
+    """The interface to a set of video player.
 
+    This class act as a wrapper and proxy around some basic elements of what
+    (ideally) a video player should has -- play-pause button, slider etc.
+    """
     pass_rect_coords = qtc.Signal(tuple)
     play_pause = qtc.Signal(bool)
-    run_result = qtc.Signal(tuple)
+    run_result = qtc.Signal(FrameData)
     set_slider_length = qtc.Signal()
     backwarded = qtc.Signal(bool)
 
-    def __init__(self, parent=None, width=None, height=None):
+    def __init__(self, parent=None, width: int = None, height: int = None):
         super().__init__(parent)
 
         self.width = width
@@ -25,8 +30,6 @@ class VideoPlayerView(qtw.QWidget):
         self._optimize_widgets()
         self._set_layouts()
         self._init()
-
-        # self.show()
 
     def _set_widgets(self):
         self.video_view = BufferRenderView(width=self.width, height=self.height)
@@ -88,20 +91,30 @@ class VideoPlayerView(qtw.QWidget):
         self.backward_btn.setText(text)
         self.backwarded.emit(backward)
 
-    def set_data(self, f_info):
-        f = f_info
-        # frame, idx, x1, y1, x2, y2 = f_info.frame, f.frame_id, f.x1, f.y1, f.x2, f.y2
-        frame, idx = f_info.frame, f.frame_id
-        rect = None
-        for d in f_info.data:
-            if isinstance(x1, float):
-                height, width = frame.shape[:2]
-                x1, y1 =int(x1 * width), int(y1 * height)
-                x2, y2 =int(x2 * width), int(y2 * height)
-                # f = frame[y1:y2 + 1, x1:x2 + 1]
-            self.run_result.emit((idx, frame, x1, y1, x2, y2))
-            rect = (x1, y1, x2, y2)
-            self.video_view.set_frame(frame, rect=rect)
+    def set_data(self, f_data: FrameData):
+        """Set data based on data withing `f_data` for current frame.
+
+        This function will do some needed pre-process to the f_info
+        before:
+        1. Push it to the `BufferRenderView` by calling `BufferRenderView.set_data`.
+        2. Emit the data by emitting signal `run_result` (basically, this
+        expose result by buffer.).
+        """
+        frame, idx = f_data.frame, f_data.frame_id
+        rect = []
+        to_int = ["x1", "y1", "x2", "y2"]
+        height, width = frame.shape[:2]
+        for d in f_data.data:
+            for key in to_int:
+                attr = getattr(d, key)
+                if isinstance(attr, float):
+                    if "x" in key:
+                        setattr(d, key, int(attr * width))
+                    else:
+                        setattr(d, key, int(attr * height))
+
+        self.video_view.set_data(f_data)
+        self.run_result.emit(f_data)
 
 if __name__ == "__main__":
     import sys
@@ -110,7 +123,7 @@ if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)
     view = VideoPlayerView()
 
-    view.set_frame(np.zeros([300, 300, 3], np.uint8), 1)
+    view.set_data(np.zeros([300, 300, 3], np.uint8), 1)
 
     view.show()
 

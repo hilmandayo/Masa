@@ -9,8 +9,7 @@ import numpy as np
 import pytest
 
 from .utils import DummyAnnotationsFactory, DummyBufferFactory, GUIFactory
-from Masa.core.datahandler import TrackedObject
-from Masa.core.datahandler import FrameInfo
+from Masa.core.datahandler import TrackedObject, FrameData, DataHandler
 
 
 # Directories for Masa ########################################################
@@ -101,7 +100,6 @@ def data_handler(s_anno_rf):
     dh = DataHandler(s_anno_rf.file)
     return dh
 
-
 # def make_tracked_objects(per_instance=True):
 #     head, data = simple_anno.head, simple_anno.data_per_instance
 #     tobjs = []
@@ -189,23 +187,7 @@ simple_tagged_video = DummyBufferFactory.get_buffer("simple_tagged_video")
 def simple_tagged_video():
     return simple_tagged_video.reset()
 
-# FrameInfo related test data #################################################
-@pytest.fixture(name="s_finfo", scope="function")
-def simple_finfo():
-    frame_infos = []
-    dummy = np.zeros([30, 30, 3], np.uint8)
-    tobjs = tracked_objects()
-    # print(tobjs)
-    for tobj in tobjs:
-        ins = tobj[0]["instance"]
-        fi = FrameInfo(dummy.copy(),
-                       ins["x1"], ins["y1"], ins["x2"], ins["y2"],
-                       object_class=tobj.object_class, tag=ins["view"],
-                       frame_id=ins["frame_id"], track_id=tobj.track_id)
-        print(fi)
-        frame_infos.append(fi)
-
-    return frame_infos
+# FrameData related test data #################################################
 
 
 # GUI #########################################################################
