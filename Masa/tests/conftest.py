@@ -5,11 +5,15 @@ from pathlib import Path
 import uuid
 
 from PySide2 import QtCore as qtc
+import cv2
 import numpy as np
 import pytest
 
 from .utils import DummyAnnotationsFactory, DummyBufferFactory, GUIFactory
 from Masa.core.datahandler import TrackedObject, FrameData, DataHandler
+from Masa.models import Buffer
+import cv2
+import Masa.models.buffer
 
 
 # Directories for Masa ########################################################
@@ -100,37 +104,6 @@ def data_handler(s_anno_rf):
     dh = DataHandler(s_anno_rf.file)
     return dh
 
-# def make_tracked_objects(per_instance=True):
-#     head, data = simple_anno.head, simple_anno.data_per_instance
-#     tobjs = []
-#     for d in data:
-#         tobj = None
-#         _tobjs = []
-#         for instance in d:
-#             instance_dict = {}
-#             track_id = instance[head.index("track_id")]
-#             # print(instance)
-#             object_class = instance[head.index("object")]
-#             for h in head:
-#                 if h not in ["track_id", "object"]:
-#                     instance_dict[h] = instance[head.index(h)]
-
-#             if per_instance:
-#                 if tobj is None:
-#                     tobj = TrackedObject(track_id, object_class, instance_dict)
-#                 else:
-#                     tobj.add_instance(instance_dict)
-#             else:
-#                 tobj = TrackedObject(track_id, object_class, instance_dict)
-#                 _tobjs.append(tobj)
-
-#         if per_instance:
-#             tobjs.append(tobj)
-#         else:
-#             tobjs.extend(_tobjs)
-
-#     return tobjs
-
 def tracked_objects_per_instance():
     head, data = simple_anno.head, simple_anno.data_per_instance
     tobjs = []
@@ -181,11 +154,26 @@ def simple_tracked_object_loop(request):
 
 
 # Video buffer related test data ##############################################
-simple_tagged_video = DummyBufferFactory.get_buffer("simple_tagged_video")
+@pytest.fixture(name="ocv_video", scope="module")
+def ocv_tagged_video():
+    def vid(length=30, width=640, height=320):
+        ocv_tagged_video = DummyBufferFactory.get_buffer("ocv_simple_tagged")
+        ocv_tagged_video.length = length
+        ocv_tagged_video.width = width
+        ocv_tagged_video.height = height
+        return ocv_tagged_video
 
-@pytest.fixture(name="st_video", scope="function")
-def simple_tagged_video():
-    return simple_tagged_video.reset()
+    return vid
+
+@pytest.fixture(name="m_buffer", scope="function")
+def monkey_patched_buffer_class(monkeypatch):
+    """Monkey patched `Masa.models.Buffer`.
+
+    We want the `Buffer` to be able to receive our mocked video.
+    """
+    monkeypatch.setattr("Masa.models.buffer.cv2.VideoCapture", lambda x: x)
+    return Masa.models.buffer.Buffer
+
 
 # FrameData related test data #################################################
 

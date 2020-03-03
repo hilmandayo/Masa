@@ -110,6 +110,16 @@ class SimpleAnnotations(DummyAnnotations):
     def head(self) -> List[str]:
         return self._head
 
+    @property
+    def data_str(self):
+        data_str = ""
+        data_str += f"{','.join(self.head)}\n"
+        for data in self.data:
+            data = [str(d) for d in data]
+            data_str += f"{','.join(data)}\n"
+
+        return data_str
+
     def create_file(self, empty_annotations_dir: Path,
                     file_name: str = "annotations.csv") -> Path:
         """Write data into the empty annotations directory.
@@ -121,10 +131,7 @@ class SimpleAnnotations(DummyAnnotations):
         data_file = empty_annotations_dir / file_name
         if data_file.exists(): data_file.unlink()
 
-        with data_file.open("a") as f:
-            f.write(f"{','.join(self.head)}\n")
-            for data in self.data:
-                data = [str(d) for d in data]
-                f.write(f"{','.join(data)}\n")
+        with data_file.open("w") as f:
+            f.write(self.data_str)
 
         return data_file

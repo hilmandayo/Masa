@@ -1,116 +1,107 @@
 """Collections of mock video data for testing."""
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Any, Union, Optional
 
+import cv2
 import numpy as np
 
 
 class DummyBufferFactory:
     """A factory that returns certain mock video data."""
     @staticmethod
-    def get_buffer(name):
-        if name == "simple_video":
-            return SimpleVideo()
-        elif name == "simple_white_video":
-            return SimpleWhiteVideo()
-        if name == "simple_black_video":
-            return SimpleBlackVideo()
-        if name == "simple_tagged_video":
-            return SimpleTaggedVideo()
+    def get_buffer(name, *args, **kwargs):
+        if name == "ocv_simple_tagged":
+            return OCVSimpleTaggedVideo(*args, **kwargs)
 
 
 @dataclass
-class DummyBuffer:
+class DummyBuffer(ABC):
     pass
 
 @dataclass
-class SimpleVideo(DummyBuffer):
+class OpenCVVideoCapture(DummyBuffer):
     length: int = 30
-    buff_idx: int = 0
     width: int = 640
     height: int = 320
-    buffer: np.ndarray = field(init=False)
-
-    def __post_init__(self):
-        # Temporary... Do not know how to solve the `buffer` init problem when
-        # this class is being inherited.
-        self.buffer = np.random.randint(
-            0, 255, size=[self.length, self.height, self.width, 3]
-        )
-
+    buff_idx: int = field(init=False, default=0)
+    data_file: Optional[Path] = field(init=False, default=None)
 
     @property
     def read_all(self):
-        return self.buffer
 
-    def create_dummy_data(self, empty_data_dir, file_name="video.mp4"):
-        data_file = empty_annotations_dir / file_name
-        if data_file.exists():
-            return data_file
-
-        data_file.write_bytes(b"")
-        return data_file
-
-    def read(self):
-        ret_frame = self.buff_idx[self.buff_idx]
-        self.buff_idx += 1
-
-        return ret_frame.copy()
-
-    def reset(self):
+        _buff_idx = self.buff_idx
         self.buff_idx = 0
 
+        retval = np.ndarray([
+            self.read() for i in range(self.length)
+        ])
 
-@dataclass
-class SimpleWhiteVideo(SimpleVideo):
-    def __post_init__(self):
-        # Temporary... Do not know how to solve the `buffer` init problem when
-        # this class is being inherited.
-        self.buffer = np.full(
-            shape=[self.length, self.height, self.width, 3], fill_value=255
-        )
+        self.buff_idx = _buff_idx
+        return retval
 
-@dataclass
-class SimpleBlackVideo(SimpleVideo):
-    def __post_init__(self):
-        # Temporary... Do not know how to solve the `buffer` init problem when
-        # this class is being inherited.
-        self.buffer = np.full(
-            shape=[self.length, self.height, self.width, 3], fill_value=0
-        )
+    def create_dummy_data(self, empty_data_dir, file_name="video.mp4"):
+        self.data_file = empty_annotations_dir / file_name
+        if self.data_file.exists():
+            return self.data_file
 
-@dataclass
-class SimpleTaggedVideo(SimpleVideo):
-    _blue = 0
-    _green = 1
-    _red = 2
-    rgb: bool = False
+        self.data_file.write_bytes(b"")
+        return self.data_file
 
-    def __post_init__(self):
-        self.buffer = np.full(
-            shape=[self.length, self.height, self.width, 3], fill_value=0
-        )
-        if self.rgb:
-            color_tag = [self._red, self._green, self._blue]
+    @abstractmethod
+    def _read(self):
+        pass
+
+    def read(self):
+        if self.buff_idx >= self.length:
+            frame = None
+            ret = False
         else:
-            color_tag = [self._blue, self._green, self._red]
+            frame = self._read()
+            ret = True
+            self.buff_idx += 1
 
-        self.buffer[:, 0, 0, :] = color_tag
-        self.buffer[:, 0, 1, :] = [[i for _ in range(3)] for i in range(self.length)]
+        return ret, frame
 
-    @property
-    def BLUE(self):
-        return self._blue
+    def isOpened(self) -> bool:
+        """Mimic OpenCV's VideoCapture `isOpened`."""
+        return True if self.data_file else False
 
-    @property
-    def GREEN(self):
-        return self._green
+    def get(self, flag: int):
+        """Mimic OpenCV's VideoCapture `get`."""
+        if flag == cv2.CAP_PROP_FRAME_COUNT:
+            return self.length
 
-    @property
-    def RED(self):
-        return self._red
+    def set(self, flag: int, value: int):
+        """Mimic OpenCV's VideoCapture `set`."""
+        if flag == cv2.cv2.CAP_PROP_POS_FRAMES:
+            self.buff_idx = value
+
+
+@dataclass
+class OCVSimpleTaggedVideo(OpenCVVideoCapture):
+    def _read(self):
+        buff = np.random.randint(
+            0, 255, size=[self.height, self.width, 3]
+        )
+        buff[0, 0, :] = self.buff_idx
+        buff[0, 1, :] = (self.BLUE, self.GREEN, self.RED)
+
+        return buff
+
+    @staticmethod
+    def BLUE():
+        return 0
+
+    @staticmethod
+    def GREEN():
+        return 1
+
+    @staticmethod
+    def RED():
+        return 2
 
 
 if __name__ == "__main__":

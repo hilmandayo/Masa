@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from io import StringIO
 from pathlib import Path
 from typing import Union, List, Dict
 import csv
@@ -21,19 +22,27 @@ class DataHandler:
     input_file
         Path to the data file.
     """
-    input_file: Union[str, Path]
-    tracked_objs: Dict[int, TrackedObject] = field(default_factory=dict)
+    input_file: Union[str, Path] = None
+    input_str: str = None
+    tracked_objs: Dict[int, TrackedObject] = field(init=False, default_factory=dict)
     _fixed_head: List[str] = field(init=False)
 
     def __post_init__(self):
-        self.input_file = Path(self.input_file)
-        self._fixed_head = "track_id object_class".split()
-        self._read_from_csv()
+        if not self.input_file and not self.input_str:
+            raise ValueError("Must pass input file or csv like string to DataHandler")
 
-    def _read_from_csv(self):
+        self._read_from_input()
+        self._fixed_head = "track_id object_class".split()
+
+    def _read_from_input(self):
         """Read data from CSV."""
         to_number = ["x1", "x2", "y1", "y2", "frame_id"]
-        with self.input_file.open(mode="r") as f_csv:
+        try:
+            if self.input_file:
+                f_csv = self.input_file.open(mode="r")
+            else:
+                f_csv = StringIO(self.input_str)
+
             csv_reader = csv.DictReader(f_csv)
             line_count = 0
             for instance in csv_reader:
@@ -58,6 +67,10 @@ class DataHandler:
                         instance=instance)
                 else:
                     self.tracked_objs[track_id].add_instance(instance)
+        finally:
+            if self.input_file:
+                f_csv.close()
+        # with self.input_file.open(mode="r") as f_csv:
 
     def __getitem__(self, index):
         return self.tracked_objs[index]
@@ -78,7 +91,7 @@ class DataHandler:
 
     @property
     def object_classes(self):
-        pass
+        return list(set(t_obj.object_class for t_obj in self.tracked_objs.values()))
 
 
     def from_frame(self, frame_id, to: str = None):
