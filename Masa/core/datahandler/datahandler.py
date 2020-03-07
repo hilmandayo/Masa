@@ -31,6 +31,8 @@ class DataHandler:
         if not self.input_file and not self.input_str:
             raise ValueError("Must pass input file or csv like string to DataHandler")
 
+        if self.input_file:
+            self.input_file = Path(self.input_file)
         self._read_from_input()
         self._fixed_head = "track_id object_class".split()
 
@@ -43,6 +45,7 @@ class DataHandler:
             else:
                 f_csv = StringIO(self.input_str)
 
+            print(f_csv)
             csv_reader = csv.DictReader(f_csv)
             line_count = 0
             for instance in csv_reader:
@@ -70,7 +73,6 @@ class DataHandler:
         finally:
             if self.input_file:
                 f_csv.close()
-        # with self.input_file.open(mode="r") as f_csv:
 
     def __getitem__(self, index):
         return self.tracked_objs[index]
