@@ -12,7 +12,7 @@ import pytest
 from .utils import DummyAnnotationsFactory, DummyBufferFactory, GUIFactory
 from Masa.core.datahandler import TrackedObject, FrameData, DataHandler
 from Masa.models import Buffer
-import cv2
+# import cv2
 import Masa.models.buffer
 
 
@@ -154,13 +154,14 @@ def simple_tracked_object_loop(request):
 
 
 # Video buffer related test data ##############################################
-@pytest.fixture(name="ocv_video", scope="module")
-def ocv_tagged_video():
+@pytest.fixture(name="ocv_video", scope="function")
+def ocv_tagged_video(empty_data_dir):
     def vid(length=30, width=640, height=320):
         ocv_tagged_video = DummyBufferFactory.get_buffer("ocv_simple_tagged")
         ocv_tagged_video.length = length
         ocv_tagged_video.width = width
         ocv_tagged_video.height = height
+        ocv_tagged_video.create_dummy_data(empty_data_dir)
         return ocv_tagged_video
 
     return vid
@@ -172,7 +173,8 @@ def monkey_patched_buffer_class(monkeypatch):
     We want the `Buffer` to be able to receive our mocked video.
     """
     monkeypatch.setattr("Masa.models.buffer.cv2.VideoCapture", lambda x: x)
-    return Masa.models.buffer.Buffer
+    return Buffer
+    # print(getattr(Masa.models.buffer.cv2, "VideoCapture"))
 
 
 # FrameData related test data #################################################

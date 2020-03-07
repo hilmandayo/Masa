@@ -43,7 +43,7 @@ class OpenCVVideoCapture(DummyBuffer):
         return retval
 
     def create_dummy_data(self, empty_data_dir, file_name="video.mp4"):
-        self.data_file = empty_annotations_dir / file_name
+        self.data_file = empty_data_dir / file_name
         if self.data_file.exists():
             return self.data_file
 
@@ -82,6 +82,9 @@ class OpenCVVideoCapture(DummyBuffer):
 
 @dataclass
 class OCVSimpleTaggedVideo(OpenCVVideoCapture):
+    BLUE: int = field(init=False, default=0)
+    GREEN: int = field(init=False, default=1)
+    RED: int = field(init=False, default=2)
     def _read(self):
         buff = np.random.randint(
             0, 255, size=[self.height, self.width, 3]
@@ -91,17 +94,17 @@ class OCVSimpleTaggedVideo(OpenCVVideoCapture):
 
         return buff
 
-    @staticmethod
-    def BLUE():
-        return 0
+    # @staticmethod
+    # def BLUE():
+    #     return 0
 
-    @staticmethod
-    def GREEN():
-        return 1
+    # @staticmethod
+    # def GREEN():
+    #     return 1
 
-    @staticmethod
-    def RED():
-        return 2
+    # @staticmethod
+    # def RED():
+    #     return 2
 
 
 if __name__ == "__main__":

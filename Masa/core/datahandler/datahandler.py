@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Tuple
 import csv
 
 from .data import TrackedObject
@@ -25,7 +25,7 @@ class DataHandler:
     input_file: Union[str, Path] = None
     input_str: str = None
     tracked_objs: Dict[int, TrackedObject] = field(init=False, default_factory=dict)
-    _fixed_head: List[str] = field(init=False)
+    _fixed_head: Tuple[str] = field(init=False, default=("dummy",))
 
     def __post_init__(self):
         if not self.input_file and not self.input_str:

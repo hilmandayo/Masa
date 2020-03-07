@@ -14,4 +14,4 @@ def test_init(svv):
 
 
 def test_pass_buffer(m_buffer, ocv_video):
-    print(m_buffer(ocv_video()))
+    print(m_buffer(ocv_video(), target_width=640))
