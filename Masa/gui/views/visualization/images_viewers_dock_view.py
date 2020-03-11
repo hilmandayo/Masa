@@ -6,11 +6,11 @@ import imutils
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 try:
     from .images_viewer_view import ImagesViewerView
-    from Masa.core.datahandler import FrameData
+    from Masa.core.data import FrameData
 except (ModuleNotFoundError, ImportError):
     sys.path.append("../../../")
     from images_viewer_view import ImagesViewerView
-    from Masa.core.datahandler import FrameData
+    from Masa.core.data import FrameData
 
 
 class ImagesViewersDockView(qtw.QDockWidget):

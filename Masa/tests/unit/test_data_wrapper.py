@@ -1,4 +1,4 @@
-from Masa.core.datahandler import FrameData
+from Masa.core.data import FrameData
 import numpy as np
 
 

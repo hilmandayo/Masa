@@ -9,7 +9,7 @@ except (ValueError, ImportError, ModuleNotFoundError):
     from session_visualizer_view import SessionVisualizerView
     from images_viewer_view import ImagesViewerView
 
-from Masa.core.datahandler import DataHandler
+from Masa.models import DataHandler
 
 
 class SessionVisualizer(qtw.QWidget):
@@ -24,6 +24,9 @@ class SessionVisualizer(qtw.QWidget):
         self._init_layouts()
         self._init()
 
+        self._setup_images_viewers()
+        self._setup_data()
+
     def _init_widgets(self):
         self.view = SessionVisualizerView()
 
@@ -37,9 +40,6 @@ class SessionVisualizer(qtw.QWidget):
         self.setLayout(self.main_layout)
         self.main_layout.addWidget(self.view)
 
-        for obj_cls in self.data_handler.object_classes:
-            self.view.add_images_viewer(obj_cls, ImagesViewerView())
-
     def _init_data(self, buff):
         if self.data_init:
             raise Exception(f"`_init_data` is called twice from `SessionVisualizer`")
@@ -48,6 +48,26 @@ class SessionVisualizer(qtw.QWidget):
             for instance in t_obj:
                 pass
         buff.to_play()
+
+    def _setup_images_viewers(self):
+        for obj_cls in self.data_handler.object_classes:
+            self.view._add_images_viewer(obj_cls, ImagesViewerView())
+
+    def _setup_data(self):
+        for t_obj in self.data_handler:
+            for instance in t_obj:
+                self.view._images_viewers[instance.object_class].add_to_row(instance)
+
+    def _add_images_viewer(self, group: str, img_viewer: ImagesViewerView):
+        """Add an ImagesViewerView object."""
+        self.main_layout.addWidget(img_viewer)
+        self.view._images_viewers[group] = img_viewer
+
+    # def add_data(self, data: FrameData):
+    #     if data.object_class not in self._images_viewers.keys():
+    #         raise ValueError()
+
+    #     self._images_viewers[data.object_class].add_to_row(data)
 
 
 

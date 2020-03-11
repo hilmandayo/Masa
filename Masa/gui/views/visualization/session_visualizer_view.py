@@ -36,7 +36,7 @@ class SessionVisualizerView(qtw.QScrollArea):
         # 'connect' each widget
         self.setWidgetResizable(True)
 
-    def add_images_viewer(self, group: str, img_viewer: ImagesViewerView):
+    def _add_images_viewer(self, group: str, img_viewer: ImagesViewerView):
         """Add an ImagesViewerView object."""
         self.main_layout.addWidget(img_viewer)
         self._images_viewers[group] = img_viewer

@@ -1,4 +1,4 @@
-from Masa.core.datahandler import TrackedObject
+from Masa.core.data import TrackedObject
 import pytest
 
 
@@ -40,18 +40,18 @@ def test_TO_add_instances(s_anno_rli):
     assert len(tracked) == len(data)
 
 
-def test_s_tobjs_iter(s_tobj_l):
-    for tobj in s_tobj_l:
+def test_s_tobjs_iter(s_tobj_instance_l):
+    for tobj in s_tobj_instance_l:
         assert tobj
 
 
-def test_change_tobjs_track_id(s_tobj_l):
+def test_change_tobjs_track_id(s_tobj_instance_l):
     dummy_val = "dummy_val"
-    for i, instance in enumerate(s_tobj_l):
+    for i, instance in enumerate(s_tobj_instance_l):
         ins = instance["instance"]
         ins["object_class"] = dummy_val
 
-        assert s_tobj_l[i]["instance"]["object_class"] == dummy_val
+        assert s_tobj_instance_l[i]["instance"]["object_class"] == dummy_val
 
 
 @pytest.mark.skip

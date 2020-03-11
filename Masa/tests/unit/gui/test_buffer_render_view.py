@@ -24,7 +24,7 @@ def buffer_render_view(request, qtbot):
     width, height = 640, 540
     # print("fixture:", width, height)
     brv = BufferRenderView(width=width, height=height)
-    print(brv.size())
+    # print(brv.size())
     qtbot.add_widget(brv)
     # request.instance.brv = brv
     return brv

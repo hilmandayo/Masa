@@ -3,7 +3,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Any, Union
+from typing import List, Any, Union, Tuple
 
 import numpy as np
 
@@ -78,10 +78,11 @@ class SimpleAnnotationsF:
         for k, v in inter_data.items():
             ret_data.append(v)
 
-        # print(ret_data)
         return ret_data
 
 
+
+# TODO: Make this as singleton
 @dataclass
 class SimpleAnnotations(DummyAnnotations):
     _head: List[str] = field(default_factory=SimpleAnnotationsF.head)
@@ -135,3 +136,17 @@ class SimpleAnnotations(DummyAnnotations):
             f.write(self.data_str)
 
         return data_file
+
+    @property
+    def frameid_to_nframes_map(self) -> List[Tuple[int, int]]:
+        """Return the number of frames for certain frame_id.
+
+        The element of return value within a list will be in a form of
+        `(frame_id, n_frame)`.
+        """
+        mapping = defaultdict(lambda: 0)
+        h = self.head
+        for data in self.data:
+            mapping[data[h.index("frame_id")]] += 1
+
+        return [(frame_id, n_frame) for frame_id, n_frame in mapping.items()]

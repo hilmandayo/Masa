@@ -1,6 +1,6 @@
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 
-from Masa.core.datahandler import FrameData
+from Masa.core.data import FrameData
 try:
     from .buffer_render_view import BufferRenderView
 except (ImportError, ModuleNotFoundError):

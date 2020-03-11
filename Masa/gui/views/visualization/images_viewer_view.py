@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
+from Masa.core.data import Instance
 
 try:
     # relative import to prevent circular import error
@@ -13,7 +14,7 @@ except (ValueError, ImportError):
     sys.path.append(str(_dir.parent.parent / "widgets"))
     from image_button import ImageButton
     sys.path.append(str(_dir.parent.parent.parent.parent))
-from Masa.core.datahandler import FrameData
+from Masa.core.data import FrameData
 from Masa.core.utils import convert_np
 from Masa.core.utils import resize
 
@@ -23,28 +24,28 @@ class ImagesViewerView(qtw.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.set_widgets()
-        self.optimize_widgets()
-        self.set_layouts()
-        self.init()
+        self._set_widgets()
+        self._optimize_widgets()
+        self._set_layouts()
+        self._init()
 
         # TEMP: temporary solve
         self._idx: int = None
         self._idx_map: Dict[dict] = {}
 
-    def set_widgets(self):
+    def _set_widgets(self):
         self.imgs_viewer_scroll = qtw.QScrollArea()
         self.imgs_viewer_widget = qtw.QWidget()
 
-    def optimize_widgets(self):
+    def _optimize_widgets(self):
         self.imgs_viewer_scroll.setHorizontalScrollBarPolicy(qtc.Qt.ScrollBarAlwaysOff)
         self.imgs_viewer_scroll.setVerticalScrollBarPolicy(qtc.Qt.ScrollBarAsNeeded)
 
-    def set_layouts(self):
+    def _set_layouts(self):
         self.imgs_grid_layout = qtw.QGridLayout()
         self.main_layout = qtw.QVBoxLayout()
 
-    def init(self):
+    def _init(self):
         # put layout in each widget
         self.imgs_viewer_widget.setLayout(self.imgs_grid_layout)
         self.imgs_viewer_scroll.setWidget(self.imgs_viewer_widget)
@@ -57,20 +58,22 @@ class ImagesViewerView(qtw.QWidget):
 #     def sizeHint(self):
 #         return qtc.QSize(600, 600)
 
-    def add_to_row(self, data: FrameData):
+    def add_to_row(self, instance: Instance):
         # idx, frame, x1, y1, x2, y2 = args
         # XXX: this is designed to be the same as in the viewer
-        cv2.rectangle(data.frame, (data.x1, data.y1), (data.x2, data.y2), (0, 0, 255), 2)
-        # frame = imutils.resize(data.frame, width=240)
-        frame = resize(data.frame, width=240)
 
-        # if isinstance(data.frame, np.ndarray):
-        #     height, width = data.frame.shape[:2]
+        frame = np.zeros([800, 800, 3], np.uint8)
+        cv2.rectangle(frame, (instance.x1, instance.y1), (instance.x2, instance.y2), (0, 0, 255), 2)
+        # frame = imutils.resize(instance.frame, width=240)
+        frame = resize(frame, width=240)
+
+        # if isinstance(instance.frame, np.ndarray):
+        #     height, width = instance.frame.shape[:2]
         #     frame = convert_np(frame)
         #     frame_icon = qtg.QIcon()
         #     frame_icon.addPixmap(frame)
 
-        track_id = str(data.track_id)
+        track_id = str(instance.track_id)
         if not track_id in self._idx_map.keys():
             self._make_new_row(track_id)
 
@@ -79,8 +82,8 @@ class ImagesViewerView(qtw.QWidget):
         # frame_btn.setIconSize(qtc.QSize(width, height))
         # frame_btn.setFixedSize(width, height)
         # frame_btn.clicked.connect(lambda: self.send_info(idx))
-        image_btn = ImageButton(data.frame)
-        self._append_to_row(track_id, data.tag, image_btn)
+        image_btn = ImageButton(frame)
+        self._append_to_row(track_id, instance.tag, image_btn)
 
     def _make_new_row(self, row_label):
         if self._idx is None:

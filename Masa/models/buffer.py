@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 
 from Masa.core.utils import resize_calculator
-from Masa.core.datahandler import FrameData
-from Masa.core.datahandler import Instance
+from Masa.core.data import FrameData
+from Masa.core.data import Instance
 from .session import BBSession
 
 
@@ -47,7 +47,7 @@ class Buffer(qtc.QThread):
         self._det_width_height(target_width, target_height, ratio)
 
         # temp
-        from Masa.core.datahandler import DataHandler
+        from Masa.models import DataHandler
         # self.dh = DataHandler("/dayo/sompo/nikaime/all_csvs/ishida/0000000002_20170814_152603_001.csv")
         self.dh = DataHandler("/dayo/sompo/nikaime/results/intermediate_output/intemediate_output_final/0000000004_20181112_150211_001.csv")
         self.sessions = [BBSession(self.dh)]

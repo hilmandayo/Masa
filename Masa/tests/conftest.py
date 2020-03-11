@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 from .utils import DummyAnnotationsFactory, DummyBufferFactory, GUIFactory
-from Masa.core.datahandler import TrackedObject, FrameData, DataHandler
-from Masa.models import Buffer
+from Masa.core.data import TrackedObject, FrameData
+from Masa.models import Buffer, DataHandler
 # import cv2
 import Masa.models.buffer
 
@@ -96,7 +96,10 @@ def simple_raw_annotations_loop_per_instance(request):
 AnnotationsSet = namedtuple("AnnotationsSet", "file head data")
 @pytest.fixture(name="s_anno_rf",scope="function")
 def simple_raw_annotations_file(empty_annotations_dir):
-    return AnnotationsSet(simple_anno.create_file(empty_annotations_dir), simple_anno.head, simple_anno.data)
+    return AnnotationsSet(
+        simple_anno.create_file(empty_annotations_dir),
+        simple_anno.head, simple_anno.data
+    )
 
 
 @pytest.fixture(scope="function")
@@ -113,7 +116,6 @@ def tracked_objects_per_instance():
         for instance in d:
             instance_dict = {}
             track_id = instance[head.index("track_id")]
-            # print(instance)
             object_class = instance[head.index("object")]
             for h in head:
                 if h not in ["track_id", "object"]:
@@ -141,15 +143,19 @@ def tracked_objects():
                 instance_dict[h] = d[head.index(h)]
 
         tobj = TrackedObject(track_id, object_class, instance_dict)
-
-    tobjs.append(tobj)
+        tobjs.append(tobj)
 
     return tobjs
 
 
 @pytest.fixture(name="s_tobj_l", scope="function",
-                params=tracked_objects_per_instance())
+                params=tracked_objects())
 def simple_tracked_object_loop(request):
+    return request.param
+
+@pytest.fixture(name="s_tobj_instance_l", scope="function",
+                params=tracked_objects_per_instance())
+def simple_tracked_object_instance_loop(request):
     return request.param
 
 

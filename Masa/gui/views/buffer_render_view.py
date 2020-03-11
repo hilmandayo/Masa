@@ -3,8 +3,8 @@ from functools import partial
 from PySide2 import (QtCore as qtc, QtGui as qtg, QtWidgets as qtw)
 import cv2
 import numpy as np
-from Masa.core.datahandler import FrameData
-# from .text_input import TextInputMenu
+
+# from Masa.core.data import FrameData
 try:
     from Masa.core.utils import convert_np
     from Masa.gui import GraphicsRectItem
@@ -24,8 +24,8 @@ class BufferRenderView(qtw.QGraphicsView):
 
     def __init__(self, parent=None, width=None, height=None):
         super().__init__(parent)
-        self._set_attributes()
 
+        self._set_attributes()
         self.width = width
         self.height = height
         self.rect = None
@@ -52,7 +52,8 @@ class BufferRenderView(qtw.QGraphicsView):
         self.setAcceptDrops(True)
         self.setScene(qtw.QGraphicsScene())
 
-    def set_data(self, f_data: FrameData):
+    # def set_data(self, f_data: FrameData):
+    def set_data(self, f_data):
         if f_data.frame is not None:
             self.frame = f_data.frame.copy()
 
