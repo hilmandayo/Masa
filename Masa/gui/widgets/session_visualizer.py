@@ -1,12 +1,12 @@
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 
 try:
-    from ..views.visualization.session_visualizer_view import SessionVisualizerView, ImagesViewerView
+    from ..views.visualization.sessions_visualizer_view import SessionsVisualizerView, ImagesViewerView
 except (ValueError, ImportError, ModuleNotFoundError):
     from pathlib import Path; _dir = Path(__file__).absolute().parent
     import sys;
     sys.path.append(str(_dir.parent / "views" / "visualization"))
-    from session_visualizer_view import SessionVisualizerView
+    from sessions_visualizer_view import SessionsVisualizerView
     from images_viewer_view import ImagesViewerView
 
 from Masa.models import DataHandler
@@ -28,7 +28,7 @@ class SessionVisualizer(qtw.QWidget):
         self._setup_data()
 
     def _init_widgets(self):
-        self.view = SessionVisualizerView()
+        self.view = SessionsVisualizerView()
 
     def _optimize_widgets(self):
         pass

@@ -15,7 +15,7 @@ def test_init(svv):
 
 # TODO: move this to proper file
 def test_pass_buffer(m_buffer, ocv_video):
-    m_buffer(ocv_video(), target_width=640)
+    m_buffer(ocv_video(length=100), target_width=640)
 
 
 def get_images_viewer():

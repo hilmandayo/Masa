@@ -8,7 +8,7 @@ except (ValueError, ImportError, ModuleNotFoundError):
     sys.path.append(str(_dir.parent.parent.parent.parent))
 
 
-class SessionVisualizerView(qtw.QScrollArea):
+class SessionsVisualizerView(qtw.QScrollArea):
     def __init__(self, parent=None,):
         super().__init__(parent=parent)
         self._images_viewers = {}
@@ -45,7 +45,7 @@ class SessionVisualizerView(qtw.QScrollArea):
 if __name__ == '__main__':
     app = qtw.QApplication(sys.argv)
 
-    svv = SessionVisualizerView()
+    svv = SessionsVisualizerView()
     svv.show()
 
     for i in range(10):

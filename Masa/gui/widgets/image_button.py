@@ -11,16 +11,25 @@ except ModuleNotFoundError:
     from utils import convert_np
 
 class ImageButton(qtw.QPushButton):
-    def __init__(self, image: np.ndarray, parent=None):
+    def __init__(self, parent=None,
+                 image: np.ndarray = None,
+                 width=320, height=320):
         super().__init__(parent=parent)
-        height, width = image.shape[:2]
+        if image is None:
+            image = np.zeros([height, width, 3], dtype=np.uint8)
+        self.set_np(image)
+        self.setIconSize(qtc.QSize(width, height))
+        self.setFixedSize(width, height)
+
+    def set_np(self, image: np.ndarray):
         image = convert_np(image, to="qpixmap")
         frame_icon = qtg.QIcon()
         frame_icon.addPixmap(image)
-
         self.setIcon(frame_icon)
-        self.setIconSize(qtc.QSize(width, height))
-        self.setFixedSize(width, height)
+        return self
+
+
+        
 
 
 if __name__ == '__main__':

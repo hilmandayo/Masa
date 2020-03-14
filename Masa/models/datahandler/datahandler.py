@@ -25,9 +25,9 @@ class DataHandler(qtc.QObject):
     added_tobj = qtc.Signal(TrackedObject)
     added_tobjs = qtc.Signal(list)
     added_instance = qtc.Signal(Instance)
-    added_instances = qtc.Signal(list)
-    deleted_tobj = qtc.Signal(tuple)
-    deleted_instance = qtc.Signal(tuple)
+    added_instances = qtc.Signal(list)  # list of instances
+    deleted_tobj = qtc.Signal(tuple) # (tobj_idx, new_tobj_len)
+    deleted_instance = qtc.Signal(tuple)  # (tobj_idx, instance_idx, new_instances_len))
 
     def __init__(self,
                  input_file: Union[str, Path] = None,

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Tuple
 import time
 
 from PySide2 import QtCore as qtc
@@ -23,6 +23,7 @@ class Buffer(qtc.QThread):
 
     run_result = qtc.Signal(FrameData)
     video_ended = qtc.Signal(int)
+    pass_frames = qtc.Signal(list)
     backwarded = qtc.Signal(bool)
     buffer_rect = qtc.Signal(tuple)
 
@@ -88,11 +89,26 @@ class Buffer(qtc.QThread):
         if video_ended:
             self.video_ended.emit(self.idx)
 
+
     def get_frame(self, idx):
         self.idx = idx
         self.video.set(cv2.CAP_PROP_POS_FRAMES, self.idx)
 
         return self.next_frame()
+
+
+    def get_frames(self, idxs: List[int]) -> List[Tuple[int, np.ndarray]]:
+        self.play = False
+        frames = []
+        for idx in idxs:
+            self.video.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            _, frame = self.video.read()
+            frames.append((idx, frame))
+
+        self.video.set(cv2.CAP_PROP_POS_FRAMES, self.idx)
+        self.play = True
+        self.pass_frames.emit(frames)
+
 
     def set_backward(self, backward: bool):
         """Set the buffer to backward or not.

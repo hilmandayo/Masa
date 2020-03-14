@@ -85,6 +85,7 @@ class OCVSimpleTaggedVideo(OpenCVVideoCapture):
     BLUE: int = field(init=False, default=0)
     GREEN: int = field(init=False, default=1)
     RED: int = field(init=False, default=2)
+
     def _read(self):
         buff = np.random.randint(
             0, 255, size=[self.height, self.width, 3]
