@@ -47,6 +47,7 @@ class DataHandler(qtc.QObject):
 
         self._read_from_input()
         self._fixed_head = "track_id object_class".split()
+        self._update_tracked_objs()
 
     def _read_from_input(self):
         """Read data from CSV."""

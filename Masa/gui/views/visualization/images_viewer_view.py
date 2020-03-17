@@ -36,31 +36,30 @@ class ImagesViewerView(qtw.QWidget):
 
         # TEMP: temporary solve
         self._idx: int = None
-        self._idx_map: Dict[dict] = {}
+        self._grid_map: Dict[dict] = {}
 
     def _set_widgets(self):
-        self._scroll = qtw.QScrollArea()
-        self.imgs_viewer_widget = qtw.QWidget()
+        self.scroll = qtw.QScrollArea()
+        self.grid_widget = qtw.QWidget()
 
     def _optimize_widgets(self):
-        self._scroll.setHorizontalScrollBarPolicy(qtc.Qt.ScrollBarAlwaysOff)
-        self._scroll.setVerticalScrollBarPolicy(qtc.Qt.ScrollBarAsNeeded)
+        self.scroll.setHorizontalScrollBarPolicy(qtc.Qt.ScrollBarAlwaysOff)
+        self.scroll.setVerticalScrollBarPolicy(qtc.Qt.ScrollBarAsNeeded)
 
     def _set_layouts(self):
-        # self.imgs_grid_layout = qtw.QGridLayout()
         self.layout_main = qtw.QVBoxLayout()
         self.layout_grid = qtw.QVBoxLayout()
-        self.layout_grid_row = qtw.QVBoxLayout()
+        self.layout_grid_row = qtw.QHBoxLayout()
         # self.layout_col = qtw.QVBoxLayout()
 
     def _init(self):
         # put layout in each widget
-        self.imgs_viewer_widget.setLayout(self.layout_main)
-        self._scroll.setWidget(self.imgs_viewer_widget)
+        self.grid_widget.setLayout(self.layout_grid)
+        self.scroll.setWidget(self.grid_widget)
 
         # 'connect' each widget
-        self._scroll.setWidgetResizable(True)
-        self.main_layout.addWidget(self._scroll)
+        self.scroll.setWidgetResizable(True)
+        self.layout_main.addWidget(self.scroll)
         self.setLayout(self.layout_main)
 
     def init_data(self, instances: List[Instance]):
@@ -73,7 +72,7 @@ class ImagesViewerView(qtw.QWidget):
 
     def add_to_row(self, instance: Instance, get_image=False):
         track_id = str(instance.track_id)
-        if not track_id in self._idx_map.keys():
+        if not track_id in self._grid_map.keys():
             self._make_new_row(row_label=track_id,
                                row_meta={"object_class": instance.object_class,
                                      })
@@ -93,7 +92,7 @@ class ImagesViewerView(qtw.QWidget):
     def refresh_images(self, images: List[Tuple[int, np.ndarray]]):
         for idx, image in images:
             height, width = image.shape[:2]
-            for row, info in self._idx_map.items():
+            for row, info in self._grid_map.items():
                 for col_meta in info["col_meta"]:
                     if idx == col_meta["frame_id"]:
                         x1 = col_meta["x1"]
@@ -109,28 +108,26 @@ class ImagesViewerView(qtw.QWidget):
                         col_meta["image"].set_np(crop)
 
     def delete_row(self, label):
-        self._idx_map[label]
+        self._grid_map[label]
 
 
     def _make_new_row(self, row_label, row_meta):
-        if self._idx is None:
-            self._idx = 0
-        else:
-            self._idx += 1
-        self.imgs_grid_layout.addWidget(qtw.QLabel(row_label), self._idx, 0)
+        row_widget = qtw.QWidget()
+        row_widget.setLayout(qtw.QHBoxLayout())
+        row_widget.layout().addWidget(qtw.QLabel(row_label))
+        self.layout_grid.addWidget(row_widget)
 
-        self._idx_map[row_label] = {"row": self._idx,
+        self._grid_map[row_label] = {"widget": row_widget,
                                     "length": 1,
                                     "row_meta": row_meta,
                                     "col_meta": []}
-        return self._idx
 
     def _append_to_row(self, label, image, col_meta):
-        info = self._idx_map[label]
-        self.imgs_grid_layout.addWidget(image, info["row"], info["length"])
-        info["length"] += 1
+        row = self._grid_map[label]
+        row["widget"].layout().addWidget(image)
+        row["length"] += 1
         col_meta.update({"image": image})
-        info["col_meta"].append(col_meta)
+        row["col_meta"].append(col_meta)
 
 if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)
