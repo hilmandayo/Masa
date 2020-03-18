@@ -3,7 +3,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Any, Union, Tuple
+from typing import List, Any, Union, Tuple, Optional
 
 import numpy as np
 
@@ -11,9 +11,9 @@ import numpy as np
 class DummyAnnotationsFactory:
     """A factory that returns certain mock annotations data."""
     @staticmethod
-    def get_annotations(name):
+    def get_annotations(name, *args, **kwargs):
         if name == "simple_anno":
-            return SimpleAnnotations()
+            return SimpleAnnotations(*args, **kwargs)
 
 @dataclass
 class DummyAnnotations:
@@ -39,13 +39,13 @@ class SimpleAnnotationsF:
         return "track_id frame_id x1 y1 x2 y2 scene object view".split()
 
     @staticmethod
-    def data() -> List[List[Union[int, str]]]:
+    def data(increase_track_id=None) -> List[List[Union[int, str]]]:
         """Output the data mocking the contents of a CSV file.
 
         Each column represents the data as defined in `head()`.
         """
         # TODO: Make it better
-        return [
+        retval =  [
             [0, 31, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
             [0, 35, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
             [0, 37, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
@@ -60,6 +60,12 @@ class SimpleAnnotationsF:
             [4, 58, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
             [5, 70, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
             ]
+
+        if increase_track_id is not None:
+            for r in retval:
+                r[SimpleAnnotationsF.head().index("track_id")] += increase_track_id
+
+        return retval
 
     @staticmethod
     # TODO: Correct return data format?
@@ -85,11 +91,16 @@ class SimpleAnnotationsF:
 # TODO: Make this as singleton
 @dataclass
 class SimpleAnnotations(DummyAnnotations):
-    _head: List[str] = field(default_factory=SimpleAnnotationsF.head)
-    _data: List[Union[int, str]] = field(default_factory=SimpleAnnotationsF.data)
+    increase_track_id: Optional[int] = None
+    _head: List[str] = field(init=False, default_factory=SimpleAnnotationsF.head)
+    _data: List[Union[int, str]] = field(init=False)
     _data_per_instance: List[List[Union[int, str]]] = field(
         default_factory=SimpleAnnotationsF.data_per_instance
     )
+
+    def __post_init__(self):
+        # any better way??
+        self._data = SimpleAnnotationsF.data(self.increase_track_id)
 
     def _get_data(self, per_instance=False):
         if per_instance:

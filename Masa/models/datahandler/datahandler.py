@@ -6,7 +6,7 @@ import csv
 from PySide2 import QtCore as qtc
 
 from Masa.core.data import TrackedObject, Instance
-from Masa.core.data import FrameData
+from Masa.core.utils import SignalPacket
 
 
 class DataHandler(qtc.QObject):
@@ -22,16 +22,17 @@ class DataHandler(qtc.QObject):
     input_file
         Path to the data file.
     """
-    added_tobj = qtc.Signal(TrackedObject)
-    added_tobjs = qtc.Signal(list)
-    added_instance = qtc.Signal(Instance)
-    added_instances = qtc.Signal(list)  # list of instances
-    deleted_tobj = qtc.Signal(tuple) # (tobj_idx, new_tobj_len)
-    deleted_instance = qtc.Signal(tuple)  # (tobj_idx, instance_idx, new_instances_len))
+    added_tobj = qtc.Signal(SignalPacket)  # data=TrackedObject
+    added_tobjs = qtc.Signal(SignalPacket)  # data=list
+    added_instance = qtc.Signal(SignalPacket)  #  data=Instance
+    added_instances = qtc.Signal(SignalPacket)  # data=List[instance]
+    deleted_tobj = qtc.Signal(SignalPacket) # data=Tuple[tobj_idx, new_tobj_len]
+    deleted_instance = qtc.Signal(SignalPacket)  # data=Tuple[tobj_idx, instance_idx, new_instances_len]
 
     def __init__(self,
                  input_file: Union[str, Path] = None,
-                 input_str: str = None):
+                 input_str: str = None,
+                 name: str = "DataHandler"):
 
         super().__init__()
         if not input_file and not input_str:
@@ -39,6 +40,7 @@ class DataHandler(qtc.QObject):
                 "Must pass input file or csv like string to DataHandler"
             )
 
+        self.name = name
         if input_file:
             self.input_file = Path(input_file)
         else:
@@ -119,11 +121,11 @@ class DataHandler(qtc.QObject):
             if ins:
                 ret.extend(ins)
 
-        if to:
-            if to.lower() == "frameinfo":
-                ret = FrameData.from_instances(frame_id, ret)
-            else:
-                raise ValueError(f"Cannot understand of type {type(to)}")
+        # if to:
+        #     if to.lower() == "frameinfo":
+        #         ret = FrameData.from_instances(frame_id, ret)
+        #     else:
+        #         raise ValueError(f"Cannot understand of type {type(to)}")
 
         return ret
 
@@ -150,7 +152,9 @@ class DataHandler(qtc.QObject):
             data = data[0]
         if isinstance(data, Instance):
             self.tracked_objs[data.track_id].add_instance(data)
-            self.added_instance.emit(data)
+            self.added_instance.emit(
+                SignalPacket(sender=self.name, data=data)
+            )
             return self
 
         if not (isinstance(data, TrackedObject) or
@@ -164,7 +168,9 @@ class DataHandler(qtc.QObject):
                 )
             self.tracked_objs[instance.track_id].add_instance(instance)
             instances.append(instance)
-        self.added_instances.emit(instances)
+        self.added_instances.emit(
+            SignalPacket(sender=self.name, data=instances)
+        )
         return self
 
     def delete(self, tobj_idx: int, instance_idx: int = None):
@@ -174,7 +180,9 @@ class DataHandler(qtc.QObject):
             except KeyError:
                 raise ValueError(f"`tobj_idx`={tobj_idx} does not exist")
             self._update_tracked_objs()
-            self.deleted_tobj.emit((tobj_idx, len(self.tracked_objs)))
+            self.deleted_tobj.emit(
+                SignalPacket(sender=self.name, data=(tobj_idx, len(self.tracked_objs)))
+            )
             return self
 
         try:
@@ -185,8 +193,9 @@ class DataHandler(qtc.QObject):
             raise ValueError(f"`instance_idx`={instance_idx} does not exist")
         self._update_tracked_objs()
         self.deleted_instance.emit(
-            (tobj_idx, instance_idx, len(self.tracked_objs[tobj_idx]))
-            )
+            SignalPacket(sender=self.name,
+                         data=(tobj_idx, instance_idx, len(self.tracked_objs[tobj_idx])))
+        )
         return self
 
     def _update_tracked_objs(self):

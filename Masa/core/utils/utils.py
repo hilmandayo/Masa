@@ -1,3 +1,4 @@
+from collections import namedtuple
 from pathlib import Path
 from typing import Union
 import numpy as np
@@ -5,6 +6,8 @@ import numpy as np
 from PySide2 import QtGui as qtg, QtWidgets as qtw
 import cv2
 
+
+SignalPacket = namedtuple("SignalPacket", "sender data")
 
 def create_dirs(dirs: Union[list, str]):
     """An utility to create directories.

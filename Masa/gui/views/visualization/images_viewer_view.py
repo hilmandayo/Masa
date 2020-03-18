@@ -14,8 +14,7 @@ except (ValueError, ImportError):
     from image_button import ImageButton
     sys.path.append(str(_dir.parent.parent.parent.parent))
 from Masa.core.data import Instance
-from Masa.core.utils import convert_np
-from Masa.core.utils import resize
+from Masa.core.utils import convert_np, resize, SignalPacket
 
 
 class ImagesViewerView(qtw.QWidget):
@@ -23,11 +22,13 @@ class ImagesViewerView(qtw.QWidget):
 
     TrackID - Images.
     """
-    get_frames = qtc.Signal(tuple)
-    jump_to = qtc.Signal(int)
+    get_frames = qtc.Signal(SignalPacket)
+    jump_to = qtc.Signal(SignalPacket)
+    deleted = qtc.Signal(SignalPacket)  # data=tuple(label: int, col: int)
 
-    def __init__(self, parent=None):
+    def __init__(self, name="ImagesViewerView", parent=None):
         super().__init__(parent)
+        self.name = name
 
         self._set_widgets()
         self._optimize_widgets()
@@ -49,7 +50,6 @@ class ImagesViewerView(qtw.QWidget):
     def _set_layouts(self):
         self.layout_main = qtw.QVBoxLayout()
         self.layout_grid = qtw.QVBoxLayout()
-        self.layout_grid_row = qtw.QHBoxLayout()
         # self.layout_col = qtw.QVBoxLayout()
 
     def _init(self):
@@ -68,10 +68,10 @@ class ImagesViewerView(qtw.QWidget):
             self.add_to_row(instance)
             frame_ids.append(instance.frame_id)
 
-        self.get_frames.emit(frame_ids) # emit list of frames
+        self.get_frames.emit(SignalPacket(sender=self.name, data=frame_ids)) # emit list of frames
 
     def add_to_row(self, instance: Instance, get_image=False):
-        track_id = str(instance.track_id)
+        track_id = instance.track_id
         if not track_id in self._grid_map.keys():
             self._make_new_row(row_label=track_id,
                                row_meta={"object_class": instance.object_class,
@@ -86,14 +86,18 @@ class ImagesViewerView(qtw.QWidget):
         self._append_to_row(track_id, image_btn, col_meta)
 
         if get_image:
-            self.get_frames.emit([instance.frame_id])
+            self.get_frames.emit(SignalPacket(
+                sender=self.name, data=[instance.frame_id])
+            )
 
+    def __len__(self):
+        return len(self._grid_map.keys())
 
     def refresh_images(self, images: List[Tuple[int, np.ndarray]]):
         for idx, image in images:
             height, width = image.shape[:2]
-            for row, info in self._grid_map.items():
-                for col_meta in info["col_meta"]:
+            for label, row_info in self._grid_map.items():
+                for col_meta in row_info["col_meta"]:
                     if idx == col_meta["frame_id"]:
                         x1 = col_meta["x1"]
                         y1 = col_meta["y1"]
@@ -107,41 +111,80 @@ class ImagesViewerView(qtw.QWidget):
                         crop = image[y1:y2 + 1, x1: x2 + 1]
                         col_meta["image"].set_np(crop)
 
-    def delete_row(self, label):
-        self._grid_map[label]
+    def delete(self, label: int, col: int = None):
+        if col is None:
+            self._delete_row(label)
+            self._update_label()
+            col = -1
+        else:
+            self._delete_col(label, col)
 
+        self.deleted.emit(SignalPacket(
+            sender=self.name, data=(label, col))
+        )
+
+    def _delete_row(self, label: int):
+        while self._grid_map[label]["col_meta"]:
+            self._delete_col(label)
+
+        self.layout_grid.itemAt(label).widget().deleteLater()
+        del self._grid_map[label]
+
+    def _delete_col(self, label: int, col: int = None):
+        info = self._grid_map[label]
+        # TODO: Is this good thing???
+        if col is None:
+            col = len(info["col_meta"]) - 1
+        info["widget"].layout().itemAt(col + 1).widget().deleteLater()
+        info["col_meta"][col]["image"].deleteLater()
+        
+        del info["col_meta"][col]
 
     def _make_new_row(self, row_label, row_meta):
         row_widget = qtw.QWidget()
         row_widget.setLayout(qtw.QHBoxLayout())
-        row_widget.layout().addWidget(qtw.QLabel(row_label))
+        row_widget.layout().addWidget(qtw.QLabel(str(row_label)))
         self.layout_grid.addWidget(row_widget)
 
         self._grid_map[row_label] = {"widget": row_widget,
-                                    "length": 1,
+                                    # "length": 1,
                                     "row_meta": row_meta,
                                     "col_meta": []}
 
     def _append_to_row(self, label, image, col_meta):
         row = self._grid_map[label]
         row["widget"].layout().addWidget(image)
-        row["length"] += 1
+        # row["length"] += 1
         col_meta.update({"image": image})
         row["col_meta"].append(col_meta)
+
+    def _update_label(self):
+        _grid_map = {}
+        idx = 0
+        for idx, (label, col_info) in enumerate(self._grid_map.items()):
+            col_info["widget"].layout().itemAt(0).widget().deleteLater()
+            col_info["widget"].layout().insertWidget(0, qtw.QLabel(str(idx)))
+            _grid_map.update({idx: col_info})
+        self._grid_map = _grid_map
 
 if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)
     imgs_viewer = ImagesViewerView()
 
-    dummy = np.zeros((320, 320, 3), np.uint8)
+    dummy = np.full((320, 320, 3), 144, np.uint8)
     instances = []
     i = 0
     for track_id in range(10):
-        for frame_id in range(3):
+        r = 3
+        if track_id == 2:
+            r = 4
+        for frame_id in range(r):
             instances.append(Instance(
                 track_id, "none", i, 0, 0, 320, 320, frame_id
             ))
     imgs_viewer.init_data(instances)
     imgs_viewer.refresh_images([(i, dummy) for i in range(3)])
     imgs_viewer.show()
+    # imgs_viewer.delete(0, 2)
+    imgs_viewer.delete(2, 2)
     sys.exit(app.exec_())

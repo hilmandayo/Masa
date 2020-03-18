@@ -198,10 +198,10 @@ class Buffer(qtc.QThread):
 
                 # for session in self.session: session()
 
-                fi = self.dh.from_frame(self.idx, to="frameinfo")
-                fi.frame = self.frame
+                # fi = self.dh.from_frame(self.idx, to="frameinfo")
+                # fi.frame = self.frame
 
-                self.run_result.emit(fi)
+                self.run_result.emit(self.frame)
 
                 time.sleep(1 / self.fps) # fps
             time.sleep(0.1)

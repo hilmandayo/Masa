@@ -13,6 +13,19 @@ from Masa.core.data import  TrackedObject
 from Masa.tests.utils import DummyAnnotationsFactory
 
 
+# TODO: Make this as a more robust conftest
+simple_anno_p3 = DummyAnnotationsFactory.get_annotations("simple_anno", increase_track_id=3)
+@pytest.fixture(scope="function")
+def data_handler_p3(empty_annotations_dir):
+    """Make sure the method that reorder `track_id` from 0 is called upon init."""
+    return DataHandler(simple_anno_p3.create_file(empty_annotations_dir))
+
+
+def test_update_track_id_upon_init(data_handler_p3):
+    for idx, tobj in enumerate(data_handler_p3, 0):
+        assert idx == tobj.track_id
+
+
 def test_simple_annotations(s_anno_rf):
     """Make sure we have a correct simple annotations test data to work with.
 
@@ -70,7 +83,7 @@ class TestAppendDeleteExistingTrackedObject:
         assert all([
             len(data_handler[s_tobj_l.track_id]) == (prev_len + 1),
             data_handler[s_tobj_l.track_id][-1] == ins,
-            blocker.args[0] == ins
+            blocker.args[0].data == ins
         ])
 
     def test_append_tobj(self, qtbot, data_handler, s_tobj_l):
@@ -84,7 +97,7 @@ class TestAppendDeleteExistingTrackedObject:
         assert all([
             len(data_handler[s_tobj_l.track_id]) == (prev_len + 1),
             data_handler[s_tobj_l.track_id][-1] == s_tobj_l[0],
-            blocker.args[0] == s_tobj_l[0]
+            blocker.args[0].data == s_tobj_l[0]
         ])
 
 
@@ -112,7 +125,7 @@ class TestAppendDeleteExistingTrackedObject:
             data_handler.delete(s_tobj_instance_l.track_id)
 
         assert all([
-            blocker.args[0] == (s_tobj_instance_l.track_id, orig_len - 1),
+            blocker.args[0].data == (s_tobj_instance_l.track_id, orig_len - 1),
             len(data_handler) == orig_len - 1,
             # check the key
             all(i == k for (i, k) in enumerate(data_handler.tracked_objs.keys())),
@@ -133,7 +146,7 @@ class TestAppendDeleteExistingTrackedObject:
             data_handler.delete(s_tobj_instance_l.track_id, del_this)
 
         assert all([
-            blocker.args[0] == (s_tobj_instance_l.track_id, del_this, orig_len - 1),
+            blocker.args[0].data == (s_tobj_instance_l.track_id, del_this, orig_len - 1),
             len(data_handler) == dh_len,
             # check the key is always up-to-date
             all(i == k for (i, k) in enumerate(data_handler.tracked_objs.keys())),

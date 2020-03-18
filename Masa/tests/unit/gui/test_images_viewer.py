@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from Masa.gui import ImagesViewerView
 import pytest
 from Masa.tests.utils import DummyAnnotationsFactory
@@ -30,28 +30,36 @@ def initialized_images_viewer_view(qtbot, data_handler, buff):
 
 
 simple_anno = DummyAnnotationsFactory.get_annotations("simple_anno")
-def get_row_indexes():
-    row_indexes = []
+Index = namedtuple("Indexes", "row length")
+def get_row_length_information():
+    indexes = []
+    cols_len = 0
+    prev_row = None
     for data in simple_anno.data:
-        row_indexes.append(data[simple_anno.head.index("track_id")])
+        curr_row = data[simple_anno.head.index("track_id")]
 
-    return row_indexes
+        if prev_row is None:
+            # At the start.
+            prev_row = curr_row
 
-def get_col_indexes_per_row():
-    pass
-    return row_indexes
+        if curr_row == prev_row:
+            cols_len += 1
+        else:
+            indexes.append(Index(row=curr_row, length=cols_len))
+            cols_len = 1
 
-@pytest.fixture(scope="function", params=get_row_indexes())
-def row_index(request):
+        prev_row = curr_row
+
+
+    return indexes
+
+
+@pytest.fixture(scope="function", params=get_row_length_information())
+def row_info(request):
     return request.param
 
 
-@pytest.fixture(name="col_index", scope="function")
-def col_index_per_row():
-    pass
-
-
-
+@pytest.fixture(scope="function")
 def test_show(ivv):
     ivv.show()
 
@@ -72,10 +80,11 @@ class TestAddData:
 
         assert all(asserts)
 
+@pytest.mark.skip(reason="Checked manually. But will need to update this.")
 class TestDeleteData:
-    def test_delete_row(self, i_ivv):
+    def test_delete_col_in_a_row(self, i_ivv, row_info):
         pass
-    def test_delete_col_in_a_row(self, i_ivv):
+    def test_delete_row(self, i_ivv, row_info):
         pass
 
 
