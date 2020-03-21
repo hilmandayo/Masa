@@ -6,11 +6,13 @@ from PySide2 import QtCore as qtc
 import cv2
 import numpy as np
 
-from Masa.core.utils import resize_calculator
-from Masa.core.data import FrameData
-from Masa.core.data import Instance
+from Masa.core.utils import resize_calculator, SignalPacket
+from Masa.core.data import Instance, TrackedObject
 from .session import BBSession
 
+
+from collections import namedtuple
+RunResults = namedtuple("RunResults", "idx new_data")
 
 class Buffer(qtc.QThread):
     """A buffer of images thread.
@@ -18,16 +20,18 @@ class Buffer(qtc.QThread):
     This buffer act as the main engine for the video player.
 
     Signal:
-    `run_result`:
+    `run_results`:
     """
 
-    run_result = qtc.Signal(FrameData)
+    run_results = qtc.Signal(SignalPacket)
+    session_initialized = qtc.Signal(SignalPacket)
     video_ended = qtc.Signal(int)
     pass_frames = qtc.Signal(list)
     backwarded = qtc.Signal(bool)
     buffer_rect = qtc.Signal(tuple)
 
-    def __init__(self, video: Union[Path, str],  target_width=None, target_height=None, parent=None,
+    def __init__(self, video: Union[Path, str],
+                 target_width=None, target_height=None, parent=None,
                  ratio=True, backward=False, fps=60, **kwargs):
         super().__init__(parent=parent, **kwargs)
 
@@ -36,7 +40,7 @@ class Buffer(qtc.QThread):
             raise ValueError(f"Problem in opening file {str(video)}. "
                              "Are you sure the path is valid?")
 
-        self.play = False
+        self._play = False
         self.n_frames = int(self.video.get(cv2.CAP_PROP_FRAME_COUNT))
         self.idx = None
         self.prev_idx = -1
@@ -51,7 +55,7 @@ class Buffer(qtc.QThread):
         from Masa.models import DataHandler
         # self.dh = DataHandler("/dayo/sompo/nikaime/all_csvs/ishida/0000000002_20170814_152603_001.csv")
         self.dh = DataHandler("/dayo/sompo/nikaime/results/intermediate_output/intemediate_output_final/0000000004_20181112_150211_001.csv")
-        self.sessions = [BBSession(self.dh)]
+        # self.sessions = [BBSession(self.dh)]
 
     def _det_width_height(self, width, height, ratio):
         """Determine the width and height of the video.
@@ -71,23 +75,28 @@ class Buffer(qtc.QThread):
         self.ratio = ratio
         self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-    def play_pause_toggle(self):
-        if self.play:
-            self.to_pause()
+    def jump_idx(self, idx):
+        self.pause()
+        self.idx = idx
+        self.play()
+
+    def play_pause_toggle(self) -> bool:
+        if self._play:
+            self.pause()
         else:
-            self.to_play()
+            self.play()
 
-    def to_play(self):
-        self.play = True
+        return self._play
 
-    def to_pause(self):
-        self.play = False
+    def play(self):
+        self._play = True
 
-    def stop(self, video_ended=False):
-        self.play = False
+    def pause(self):
+        self._play = False
 
-        if video_ended:
-            self.video_ended.emit(self.idx)
+    def stop(self):
+        self.pause()
+        self.video_ended.emit(self.idx)
 
 
     def get_frame(self, idx):
@@ -98,7 +107,7 @@ class Buffer(qtc.QThread):
 
 
     def get_frames(self, idxs: List[int]) -> List[Tuple[int, np.ndarray]]:
-        self.play = False
+        self._play = False
         frames = []
         for idx in idxs:
             self.video.set(cv2.CAP_PROP_POS_FRAMES, idx)
@@ -106,7 +115,7 @@ class Buffer(qtc.QThread):
             frames.append((idx, frame))
 
         self.video.set(cv2.CAP_PROP_POS_FRAMES, self.idx)
-        self.play = True
+        self._play = True
         self.pass_frames.emit(frames)
 
 
@@ -116,30 +125,36 @@ class Buffer(qtc.QThread):
         Nothing will happen if the state is the same as before.
         """
         if self.backward != backward:
-            prev_play_status = self.play
-            self.play = False
+            prev_play_status = self._play
+            self._play = False
             if backward:
                 self.backward = True
             else:
                 self.backward = False
 
-            self.session = EpipolarTrack(backward=self.backward)
+            # self.session = EpipolarTrack(backward=self.backward)
             # Cont from here...
             # How to make more robust backward (tochuu and from start...)
             self.idx = None
-            self.play = prev_play_status
-            self.backwarded.emit()
+            self._play = prev_play_status
+            self.backwarded.emit(self.backward)
+
+    def session_init_r(self, packet: SignalPacket):
+        self.pause()
+        packet = packet.data
+        session = packet.session
+        # CONT from here
+        s = self.SESSIONS[session](packet.s_data)
 
     def next_frame(self):
         ret, frame = self.video.read()
         if not ret:
             return
 
-        if self.width and self.height:
-            frame = cv2.resize(frame, (self.width,  self.height), interpolation=cv2.INTER_AREA)
+        frame = cv2.resize(frame, (self.width,  self.height), interpolation=cv2.INTER_AREA)
         return frame
 
-    def update_index(self):
+    def update_idx(self):
         """Update internal buffer index.
 
         Must be called in every run iteration.
@@ -174,14 +189,14 @@ class Buffer(qtc.QThread):
 
     def run(self):
         while self.run_thread:
-            while self.play:
+            while self._play:
                 # Keeping with our index keeping ##############################
-                self.update_index()
+                self.update_idx()
 
                 # Handling videos flow ########################################
                 if self.prev_idx == self.idx:
                     # We at the end of video
-                    self.stop(video_ended=True)
+                    self.stop()
                     continue
 
                 elif self.prev_idx == self.idx - 1:
@@ -201,16 +216,20 @@ class Buffer(qtc.QThread):
                 # fi = self.dh.from_frame(self.idx, to="frameinfo")
                 # fi.frame = self.frame
 
-                self.run_result.emit(self.frame)
+                rr = RunResults(self.idx, "dummy")
+
+                self.run_results.emit(rr)
 
                 time.sleep(1 / self.fps) # fps
             time.sleep(0.1)
 
     def stop_thread(self):
-        self.play = False
+        # Is this a good approach??
+        # I do not know. But it works!
+        self._play = False
         self.run_thread = False
         # Give time for the `run` to completely stop
-        time.sleep(0.1)
+        time.sleep(0.2)
 
     def get_points(self, rect_pts):
         if rect_pts:

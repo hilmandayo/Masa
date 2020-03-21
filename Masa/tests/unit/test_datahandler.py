@@ -9,7 +9,8 @@ import random
 import csv
 import pytest
 from Masa.models import DataHandler
-from Masa.core.data import  TrackedObject
+from Masa.core.data import  TrackedObject, Instance
+from Masa.core.utils import  SignalPacket
 from Masa.tests.utils import DummyAnnotationsFactory
 
 
@@ -61,6 +62,27 @@ def test_index_frame(s_anno_rf, frame_id, n_ins):
     dh = DataHandler(s_anno_rf.file)
     out = dh.from_frame(frame_id)
     assert len(out) == n_ins
+
+
+@pytest.mark.parametrize("frame_id, n_ins", simple_anno.frameid_to_nframes_map)
+def test_run_results_r(data_handler, frame_id, n_ins):
+    instances = data_handler.from_frame(frame_id)
+    prev_len = len(instances)
+
+    sp = SignalPacket("dummy", instances)
+    data_handler.run_results_r(sp)
+
+    assert len(instances) == prev_len
+
+
+@pytest.mark.parametrize("frame_id, n_ins", simple_anno.frameid_to_nframes_map)
+def test_run_results_r_error(data_handler, frame_id, n_ins):
+    instances = data_handler.from_frame(frame_id)
+    instances.append(Instance(100, "dummy", 100, 1, 2, 1, 2, None))
+    sp = SignalPacket("dummy", instances)
+
+    with pytest.raises(Exception):
+        data_handler.run_results_r(sp)
 
 
 class TestAppendDeleteExistingTrackedObject:

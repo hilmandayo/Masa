@@ -111,7 +111,7 @@ class DataHandler(qtc.QObject):
         return list(set(t_obj.object_class for t_obj in self.tracked_objs.values()))
 
 
-    def from_frame(self, frame_id, to: str = None):
+    def from_frame(self, frame_id, to: str = None) -> List[Instance]:
         ret = []
         for tobj in self.tracked_objs.values():
             ins = []
@@ -129,6 +129,26 @@ class DataHandler(qtc.QObject):
 
         return ret
 
+    def run_results_r(self, curr_results: SignalPacket):
+        """Receive result from current index of session.
+
+        Play mode???
+        """
+        curr_results: List[Instance] = curr_results.data
+        try:
+            curr_idx = curr_results[0].frame_id
+        except IndexError:
+            return
+
+        # Sanity check.
+        if not all([i.frame_id == curr_idx for i in curr_results]):
+            raise Exception(f"Expecting `Instance` with {curr_idx} index, "
+                            f"got {result.frame_id} instead")
+
+        for result in curr_results:
+            self.append(result)
+
+
     def __next__(self):
         try:
             next_key = next(self._iter)
@@ -145,6 +165,10 @@ class DataHandler(qtc.QObject):
 
     def __len__(self):
         return len(self.tracked_objs)
+
+    def init_tobj_r(self, packet: SignalPacket):
+        tobj = packet.data[0]
+        self.append(tobj)
 
     def append(self, data: Union[TrackedObject, Instance, List[Instance]]):
         """Add an tracked_objs object."""

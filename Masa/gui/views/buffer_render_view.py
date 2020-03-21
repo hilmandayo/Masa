@@ -54,8 +54,8 @@ class BufferRenderView(qtw.QGraphicsView):
 
     # def set_data(self, f_data: FrameData):
     def set_data(self, f_data):
-        if f_data.frame is not None:
-            self.frame = f_data.frame.copy()
+        # if f_data.frame is not None:
+        self.frame = f_data.copy()
 
         # # XXX: not good
         # if rect:

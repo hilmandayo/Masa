@@ -1,11 +1,14 @@
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
+import numpy as np
 
-from Masa.core.data import FrameData
 try:
     from .buffer_render_view import BufferRenderView
 except (ImportError, ModuleNotFoundError):
+    # import sys
+    # from pathlib import Path; _dir = Path(__file__).absolute().parent
+    # sys.path.append(str(_dir.parent.parent / "widgets"))
     from buffer_render_view import BufferRenderView
-import numpy as np
+from Masa.core.utils import SignalPacket
 
 
 class VideoPlayerView(qtw.QWidget):
@@ -16,7 +19,8 @@ class VideoPlayerView(qtw.QWidget):
     """
     pass_rect_coords = qtc.Signal(tuple)
     play_pause = qtc.Signal(bool)
-    run_result = qtc.Signal(FrameData)
+    # run_result = qtc.Signal(FrameData)
+    run_result = qtc.Signal()
     set_slider_length = qtc.Signal()
     backwarded = qtc.Signal(bool)
 
@@ -91,7 +95,10 @@ class VideoPlayerView(qtw.QWidget):
         self.backward_btn.setText(text)
         self.backwarded.emit(backward)
 
-    def set_data(self, f_data: FrameData):
+    def receive_tracked_objects(self, tobjs: SignalPacket):
+        pass
+
+    def set_data(self, f_data):
         """Set data based on data withing `f_data` for current frame.
 
         This function will do some needed pre-process to the f_info
@@ -123,7 +130,7 @@ if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)
     view = VideoPlayerView()
 
-    view.set_data(np.zeros([300, 300, 3], np.uint8), 1)
+    view.set_data(np.zeros([300, 300, 3], np.uint8))
 
     view.show()
 
