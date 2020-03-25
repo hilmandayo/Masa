@@ -28,6 +28,7 @@ class DataHandler(qtc.QObject):
     added_instances = qtc.Signal(SignalPacket)  # data=List[instance]
     deleted_tobj = qtc.Signal(SignalPacket) # data=Tuple[tobj_idx, new_tobj_len]
     deleted_instance = qtc.Signal(SignalPacket)  # data=Tuple[tobj_idx, instance_idx, new_instances_len]
+    pass_tobj = qtc.Signal(SignalPacket)
 
     def __init__(self,
                  input_file: Union[str, Path] = None,
@@ -166,9 +167,9 @@ class DataHandler(qtc.QObject):
     def __len__(self):
         return len(self.tracked_objs)
 
-    def add_tobj_r(self, packet: SignalPacket):
-        tobj = packet.data[0]
-        self.append(tobj)
+    # def add_r(self, packet: SignalPacket):
+    #     tobj = packet.data
+    #     self.append(tobj)
 
     def append(self, data: Union[TrackedObject, Instance, List[Instance]]):
         """Add an tracked_objs object."""
@@ -219,15 +220,13 @@ class DataHandler(qtc.QObject):
             raise Exception("Only can instantiated a `TrackedObject` with an `Instance`.")
         if tobj.track_id < len(self.tracked_objs):
             raise ValueError(f"`TrackedObject` with `track_id`={data.track_id} is already exist.")
-        self._update_tracked_objs()
 
         if tobj.track_id != len(self.tracked_objs):
-            raise Exception("Weird!")
+            raise ValueError(f"The `track_id` should be {len(self.tracked_objs)}!")
         self.tracked_objs[tobj.track_id] = tobj
         self.added_tobj.emit(
             SignalPacket(sender=self.name, data=tobj)
         )
-
 
     def delete(self, tobj_idx: int, instance_idx: int = None):
         if not isinstance(instance_idx, int):

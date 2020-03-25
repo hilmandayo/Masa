@@ -4,15 +4,14 @@ from PySide2 import (QtCore as qtc, QtGui as qtg, QtWidgets as qtw)
 import cv2
 import numpy as np
 
-# from Masa.core.data import FrameData
 try:
-    from Masa.core.utils import convert_np
+    from Masa.core.utils import convert_np, SignalPacket
     from Masa.gui import GraphicsRectItem
 except (ImportError, ModuleNotFoundError):
     import sys
     from pathlib import Path; _dir = Path(__file__).absolute().parent
     sys.path.append(str(_dir.parent.parent / "core" / "utils"))
-    from utils import convert_np
+    from utils import convert_np, SignalPacket
     sys.path.append(str(_dir.parent / "widgets"))
     from graphics_rect_item import GraphicsRectItem
 
@@ -51,6 +50,9 @@ class BufferRenderView(qtw.QGraphicsView):
         self.setVerticalScrollBarPolicy(qtc.Qt.ScrollBarAlwaysOff)
         self.setAcceptDrops(True)
         self.setScene(qtw.QGraphicsScene())
+
+    def set_data_r(self, packet: SignalPacket):
+        pass
 
     # def set_data(self, f_data: FrameData):
     def set_data(self, f_data):

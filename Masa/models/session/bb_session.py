@@ -1,3 +1,4 @@
+from PySide2 import QtCore as qtc
 import cv2
 
 try:
@@ -7,17 +8,36 @@ except:
     _dir = Path(__file__).parent
     sys.path.append(str(_dir))
     from session import Session
+from Masa.core.utils import SignalPacket
+
 
 class BBSession(Session):
-    def __init__(self, data_handler, backward: bool = True):
+    added_tobj = qtc.Signal(SignalPacket)
+    added_instance = qtc.Signal(SignalPacket)
+    request_tobj = qtc.Signal(SignalPacket)
+
+    def __init__(self, data_handler=None, backward: bool = True):
         super().__init__()
+        self._dh = data_handler
+
+    def set_data_handler(self, data_handler):
+        self._dh = data_handler
 
     def __call__(self, frame, index):
-        self.run()
+        self.run(frame, idx)
+
+    def add_tobj_r(self, packet: SignalPacket):
+        self._dh.append(packet.data)
+
+    def add_instance_r(self, packet: SignalPacket):
+        self._dh.append(packet.data)
+        
 
     def run(self, frame, idx):
         height, width = frame.shape[:2]
 
+    def get_tobj(self, track_id):
+        return self._dh[track_id]
 
 if __name__ == "__main__":
     vid = cv2.VideoCapture("/home/hilman_dayo/Documents/epipolar_track/video.mp4")
