@@ -16,6 +16,7 @@ from Masa.models import Buffer, DataHandler
 import Masa.models.buffer
 
 
+# TODO: For all of this, make a different scope of fixture
 # Directories for Masa ########################################################
 @pytest.fixture(name="dcpf", autouse=True, scope="session")
 def data_center_path_file(tmp_path_factory) -> qtc.QSettings:

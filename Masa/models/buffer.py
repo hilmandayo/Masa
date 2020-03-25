@@ -29,6 +29,7 @@ class Buffer(qtc.QThread):
     pass_frames = qtc.Signal(list)
     backwarded = qtc.Signal(bool)
     buffer_rect = qtc.Signal(tuple)
+    curr_frame = qtc.Signal(SignalPacket)
 
     def __init__(self, video: Union[Path, str],
                  target_width=None, target_height=None, parent=None,
@@ -217,8 +218,9 @@ class Buffer(qtc.QThread):
                 # fi.frame = self.frame
 
                 rr = RunResults(self.idx, "dummy")
-
-                self.run_results.emit(rr)
+                self.curr_frame.emit(
+                    SignalPacket(sender="Buffer", data=frame.copy())
+                )
 
                 time.sleep(1 / self.fps) # fps
             time.sleep(0.1)
