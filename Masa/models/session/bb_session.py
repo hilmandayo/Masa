@@ -11,8 +11,6 @@ except:
 class BBSession(Session):
     def __init__(self, data_handler, backward: bool = True):
         super().__init__()
-        self.backward = backward
-        self.data_handler = data_handler
 
     def __call__(self, frame, index):
         self.run()

@@ -166,36 +166,68 @@ class DataHandler(qtc.QObject):
     def __len__(self):
         return len(self.tracked_objs)
 
-    def init_tobj_r(self, packet: SignalPacket):
+    def add_tobj_r(self, packet: SignalPacket):
         tobj = packet.data[0]
         self.append(tobj)
 
     def append(self, data: Union[TrackedObject, Instance, List[Instance]]):
         """Add an tracked_objs object."""
-        if isinstance(data, TrackedObject) and len(data) == 1:
-            data = data[0]
-        if isinstance(data, Instance):
-            self.tracked_objs[data.track_id].add_instance(data)
+        # TODO: Rename as add
+        if (isinstance(data, TrackedObject) and
+            data.track_id >= len(self.tracked_objs)):
+                self._add_tobj(data)
+
+        elif isinstance(data, Instance):
+            self._add_instance(data)
+
+        elif isinstance(data, list) or isinstance(data, TrackedObject):
+            if len(data) == 1:
+                self._add_instance(data[0])
+            else:
+                print("here")
+                self._add_instances(data)
+
+        else:
+            raise ValueError(f"Data of typed {type(data)} is not supported.")
+
+        return self
+
+
+    def _add_instance(self, data, emit_signal=True):
+        """Add `Instance` to an already created `TrackedObject`."""
+        if data.track_id >= len(self.tracked_objs):
+            raise Exception(f"Must instantiated the `TrackedObject` with "
+                            f"`track_id`={data.track_id} first.")
+        self.tracked_objs[data.track_id].add_instance(data)
+        if emit_signal:
             self.added_instance.emit(
                 SignalPacket(sender=self.name, data=data)
             )
-            return self
 
-        if not (isinstance(data, TrackedObject) or
-                isinstance(data, list)):
-            raise ValueError(f"Wrong data type passed: {type(data)}")
-        instances = []
-        for instance in data:
-            if not isinstance(instance, Instance):
-                raise ValueError(
-                    f"Element of `data` passed is of wrong type {type(instance)}"
-                )
-            self.tracked_objs[instance.track_id].add_instance(instance)
-            instances.append(instance)
+    def _add_instances(self, data: List[Instance]):
+        for d in data:
+            if not isinstance(d, Instance):
+                raise ValueError(f"Wrong data type passed: {type(data)}")
+            self._add_instance(d, emit_signal=False)
         self.added_instances.emit(
-            SignalPacket(sender=self.name, data=instances)
+            SignalPacket(sender=self.name, data=data)
         )
-        return self
+
+    def _add_tobj(self, tobj):
+        self._update_tracked_objs()
+        if len(tobj) != 1:
+            raise Exception("Only can instantiated a `TrackedObject` with an `Instance`.")
+        if tobj.track_id < len(self.tracked_objs):
+            raise ValueError(f"`TrackedObject` with `track_id`={data.track_id} is already exist.")
+        self._update_tracked_objs()
+
+        if tobj.track_id != len(self.tracked_objs):
+            raise Exception("Weird!")
+        self.tracked_objs[tobj.track_id] = tobj
+        self.added_tobj.emit(
+            SignalPacket(sender=self.name, data=tobj)
+        )
+
 
     def delete(self, tobj_idx: int, instance_idx: int = None):
         if not isinstance(instance_idx, int):

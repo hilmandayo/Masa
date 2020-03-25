@@ -5,6 +5,7 @@ flawlessly!
 """
 
 
+import copy
 import random
 import csv
 import pytest
@@ -108,7 +109,21 @@ class TestAppendDeleteExistingTrackedObject:
             blocker.args[0].data == ins
         ])
 
-    def test_append_tobj(self, qtbot, data_handler, s_tobj_l):
+    def test_append_new_tobj(self, qtbot, data_handler, s_tobj_l):
+        prev_len = len(data_handler)
+        s_tobj = copy.deepcopy(s_tobj_l)
+        while len(s_tobj) != 1:
+            s_tobj.delete(-1)
+        s_tobj.change_track_id(prev_len)
+
+        with qtbot.wait_signal(data_handler.added_tobj) as blocker:
+            data_handler.append(s_tobj)
+        assert all([
+            len(data_handler) == (prev_len + 1),
+            data_handler[s_tobj.track_id] == s_tobj
+        ])
+
+    def test_append_existing_tobj(self, qtbot, data_handler, s_tobj_l):
         """Passing an `TrackedObject` with an `Instance`.
 
         The `DataHandler.added_instance` signal should emit the added `Instance`.
@@ -131,14 +146,27 @@ class TestAppendDeleteExistingTrackedObject:
         # for k in s_tobj_instance_l:
         #     print(k)
 
+        # TODO: clean this
         prev_len = len(data_handler[s_tobj_instance_l.track_id])
         to_be_added_len = len(s_tobj_instance_l)
+        tobj = copy.deepcopy(s_tobj_instance_l)
+        tobj = s_tobj_instance_l
+        # if len(tobj) == 1:
+        #     tobj.add_instance(copy.deepcopy(tobj[0]))
         # for some reason, below is not working
         # with qtbot.wait_signal(data_handler.added_instances, timeout=10000) as blocker:
-        data_handler.append(s_tobj_instance_l)
+        print(data_handler[tobj.track_id])
+        data_handler.append(tobj)
+        # print(data_handler[tobj.track_id][prev_len:][0])
+        print(data_handler[tobj.track_id])
+        # print(type(data_handler[tobj.track_id][prev_len:][0]))
+        # for i in data_handler[tobj.track_id][prev_len:]:
+        #     print(i)
+        # for i, k in zip(data_handler[tobj.track_id][prev_len:], tobj[:]):
+        #     print(type(i), type(k))
         assert all([
-            len(data_handler[s_tobj_instance_l.track_id]) == prev_len + to_be_added_len,
-            data_handler[s_tobj_instance_l.track_id][prev_len:] == s_tobj_instance_l[:]
+            len(data_handler[tobj.track_id]) == prev_len + to_be_added_len,
+            data_handler[tobj.track_id][prev_len:] == tobj[:]
         ])
 
     def test_delete_tobj(self, qtbot, data_handler, s_tobj_instance_l):
