@@ -12,10 +12,11 @@ except ValueError:
 
 
 class VideoPlayer(qtw.QWidget):
-    def __init__(self, video, parent=None,
+    def __init__(self, video, data_handler, parent=None,
                  width=None, height=None, ratio=True, fps=30):
         super().__init__(parent=parent)
 
+        self.dh = data_handler
         self.buffer = Buffer(video, target_width=width, target_height=height, ratio=ratio, fps=fps)
         self.buffer.start()
 
@@ -26,8 +27,7 @@ class VideoPlayer(qtw.QWidget):
 
         self.view.slider.setMaximum(self.buffer.n_frames - 1) # 0-indexed
         self.view.slider.sliderMoved.connect(self.buffer.get_frame)  # TODO: Pause automatically
-
         self.view.play_pause.connect(self.buffer.play_pause_toggle)
-        # self.buff.video_ended.connect(viewer.toggle_btn)
-        # # pass the frame and rect to viewer
-        self.buffer.run_result.connect(self.view.set_data)
+
+        self.buffer.curr_frame.connect(self.dh.propogate_curr_frame_data_r)
+        self.dh.curr_frame_data.connect(self.view.view.set_frame_data_r)

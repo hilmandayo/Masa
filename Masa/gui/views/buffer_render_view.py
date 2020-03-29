@@ -1,4 +1,5 @@
 from functools import partial
+from typing import List
 
 from PySide2 import (QtCore as qtc, QtGui as qtg, QtWidgets as qtw)
 import cv2
@@ -7,11 +8,15 @@ import numpy as np
 try:
     from Masa.core.utils import convert_np, SignalPacket
     from Masa.gui import GraphicsRectItem
+    from Masa.core.data import Instance
 except (ImportError, ModuleNotFoundError):
     import sys
     from pathlib import Path; _dir = Path(__file__).absolute().parent
+
     sys.path.append(str(_dir.parent.parent / "core" / "utils"))
     from utils import convert_np, SignalPacket
+    sys.path.append(str(_dir.parent.parent / "core" / "data"))
+    from data import Instance
     sys.path.append(str(_dir.parent / "widgets"))
     from graphics_rect_item import GraphicsRectItem
 
@@ -34,7 +39,7 @@ class BufferRenderView(qtw.QGraphicsView):
         # Variables for bonding box selection #################################
         self.bb_top_left = None
         self.bb_bottom_right = None
-        self.frame = None
+        self.curr_frame = None
         self.draw_box = False
         self.current_selection = None
         self.brush_current = qtg.QBrush(qtg.QColor(10, 10, 100, 120))
@@ -51,29 +56,27 @@ class BufferRenderView(qtw.QGraphicsView):
         self.setAcceptDrops(True)
         self.setScene(qtw.QGraphicsScene())
 
-    def set_data_r(self, packet: SignalPacket):
-        pass
+    def set_frame(self, frame=None):
+        if isinstance(frame, np.ndarray):
+            self.curr_frame = frame.copy()
+        curr_frame = convert_np(self.curr_frame, to="qpixmapitem")
+        self.scene().addItem(curr_frame)
 
-    # def set_data(self, f_data: FrameData):
-    def set_data(self, f_data):
-        # if f_data.frame is not None:
-        self.frame = f_data.copy()
+    def set_data(self, data: List[Instance]):
+        self.curr_data = []
+        for d in data:
+            self._draw_data(d)
+            self.curr_data.append(d)
 
-        # # XXX: not good
-        # if rect:
-        #     x1, y1, x2, y2 = rect
-        #     cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-        # elif self.rect:
-        #     x1, y1, x2, y2 = self.rect
-        #     self.rect = None
-        #     cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-
-        frame = convert_np(self.frame, to="qpixmapitem")
-        self.scene().addItem(frame)
+    def _draw_data(self, data: Instance):
+        width = data.x2 - data.x1
+        height = data.y2 - data.y1
+        self.scene().addItem(GraphicsRectItem(data.x1, data.y1, width, height))
 
     def update_frame(self):
         # get our image...
         self.scene().clear()
+        self.set_frame()
         # self.set_data()
 
         if self.draw_box:
@@ -96,7 +99,7 @@ class BufferRenderView(qtw.QGraphicsView):
         x = event.pos().x()
         y = event.pos().y()
 
-        max_x = self.frame.shape[1]
+        max_x = self.curr_frame.shape[1]
         if x < 0:
             self.bb_bottom_right.setX(0)
         elif x > max_x:
@@ -104,7 +107,7 @@ class BufferRenderView(qtw.QGraphicsView):
         else:
             self.bb_bottom_right.setX(x)
 
-        max_y = self.frame.shape[0]
+        max_y = self.curr_frame.shape[0]
         if y < 0:
             self.bb_bottom_right.setY(0)
         elif y > max_y:
@@ -151,6 +154,11 @@ class BufferRenderView(qtw.QGraphicsView):
             (x1 / self.width(), y1 / self.height(),
              x2 / self.width(), y2 / self.height()))
 
+    def set_frame_data_r(self, packet: SignalPacket):
+        framedata = packet.data
+        self.set_frame(framedata.frame)
+        self.set_data(framedata.data)
+
 
 if __name__ == '__main__':
     import sys
@@ -166,7 +174,7 @@ if __name__ == '__main__':
     # for i in np.zeros([100, width, height, 3], np.uint8):
     #     main.set_data(i)
 
-    main.set_data(np.full([height, width, 3], 155, dtype=np.uint8))
+    main.set_frame(np.full([height, width, 3], 155, dtype=np.uint8))
     print(main.size())
 
     sys.exit(app.exec_())

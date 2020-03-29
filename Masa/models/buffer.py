@@ -219,7 +219,7 @@ class Buffer(qtc.QThread):
 
                 rr = RunResults(self.idx, "dummy")
                 self.curr_frame.emit(
-                    SignalPacket(sender="Buffer", data=frame.copy())
+                    SignalPacket(sender="Buffer", data=(frame.copy(), self.idx))
                 )
 
                 time.sleep(1 / self.fps) # fps

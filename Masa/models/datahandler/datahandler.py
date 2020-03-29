@@ -6,7 +6,7 @@ import csv
 from PySide2 import QtCore as qtc
 
 from Masa.core.data import TrackedObject, Instance
-from Masa.core.utils import SignalPacket
+from Masa.core.utils import SignalPacket, FrameData
 
 
 class DataHandler(qtc.QObject):
@@ -29,6 +29,7 @@ class DataHandler(qtc.QObject):
     deleted_tobj = qtc.Signal(SignalPacket) # data=Tuple[tobj_idx, new_tobj_len]
     deleted_instance = qtc.Signal(SignalPacket)  # data=Tuple[tobj_idx, instance_idx, new_instances_len]
     pass_tobj = qtc.Signal(SignalPacket)
+    curr_frame_data = qtc.Signal(SignalPacket)
 
     def __init__(self,
                  input_file: Union[str, Path] = None,
@@ -264,3 +265,11 @@ class DataHandler(qtc.QObject):
             keys = list(range(len(keys)))
             for k, tobj in zip(keys, old.values()):
                 self.tracked_objs.update({k: tobj.change_track_id(k)})
+
+    def propogate_curr_frame_data_r(self, packet: SignalPacket):
+        # TODO: check the best way to pass ndarray
+        frame, index = packet.data
+        framedata = FrameData(frame, index, self.from_frame(index))
+        self.curr_frame_data.emit(
+            SignalPacket(sender=self.name, data=framedata)
+        )

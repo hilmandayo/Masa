@@ -147,7 +147,6 @@ class TestAppendDeleteExistingTrackedObject:
         #     print(k)
 
         # TODO: clean this
-
         prev_len = len(data_handler[s_tobj_instance_l.track_id])
         to_be_added_len = len(s_tobj_instance_l)
         tobj = copy.deepcopy(s_tobj_instance_l)

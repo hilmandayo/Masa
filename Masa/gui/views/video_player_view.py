@@ -36,7 +36,7 @@ class VideoPlayerView(qtw.QWidget):
         self._init()
 
     def _set_widgets(self):
-        self.video_view = BufferRenderView(width=self.width, height=self.height)
+        self.view = BufferRenderView(width=self.width, height=self.height)
         self.frames_label = qtw.QLabel()
         self.backward_btn = qtw.QPushButton()
         self.slider = qtw.QSlider(qtc.Qt.Horizontal)
@@ -53,7 +53,7 @@ class VideoPlayerView(qtw.QWidget):
         self.backward_btn.clicked.connect(self.toggle_btn)
         self.toggle_btn()
 
-        self.video_view.pass_rect_coords.connect(self.pass_rect_coords)
+        self.view.pass_rect_coords.connect(self.pass_rect_coords)
         self.start_pause_btn.setSizePolicy(
             qtw.QSizePolicy.Minimum, qtw.QSizePolicy.Minimum
             )
@@ -63,7 +63,7 @@ class VideoPlayerView(qtw.QWidget):
 
     def _init(self):
         # Adding widgets... We work backwards...
-        self.layout.addWidget(self.video_view, 0, 0, 1, 4)
+        self.layout.addWidget(self.view, 0, 0, 1, 4)
         self.layout.addWidget(self.frames_label, 1, 1, 1, 1)
         self.layout.addWidget(self.backward_btn, 1, 2, 1, 1)
         self.layout.addWidget(self.slider, 2, 0, 1, 3)
@@ -120,7 +120,7 @@ class VideoPlayerView(qtw.QWidget):
                     else:
                         setattr(d, key, int(attr * height))
 
-        self.video_view.set_data(f_data)
+        self.view.set_data(f_data)
         self.run_result.emit(f_data)
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import cv2
 
 
 SignalPacket = namedtuple("SignalPacket", "sender data")
+FrameData = namedtuple("FrameData", "frame index data")
 
 def create_dirs(dirs: Union[list, str]):
     """An utility to create directories.
