@@ -154,7 +154,7 @@ class BufferRenderView(qtw.QGraphicsView):
             (x1 / self.width(), y1 / self.height(),
              x2 / self.width(), y2 / self.height()))
 
-    def set_frame_data_r(self, packet: SignalPacket):
+    def set_frame_data_sl(self, packet: SignalPacket):
         framedata = packet.data
         self.set_frame(framedata.frame)
         self.set_data(framedata.data)

@@ -78,7 +78,7 @@ class TestWhileForwarded:
         sp = SignalPacket("dummy", s_tobj_l)
 
         with qtbot.wait_signal(buff.session_initialized) as blocker:
-            buff.session_init_r(sp)
+            buff.session_init_sl(sp)
 
         assert blocker.args[0].data == sp
 

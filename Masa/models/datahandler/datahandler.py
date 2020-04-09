@@ -6,7 +6,7 @@ import csv
 from PySide2 import QtCore as qtc
 
 from Masa.core.data import TrackedObject, Instance
-from Masa.core.utils import SignalPacket, FrameData
+from Masa.core.utils import SignalPacket, DataUpdateInfo, FrameData
 
 
 class DataHandler(qtc.QObject):
@@ -22,13 +22,8 @@ class DataHandler(qtc.QObject):
     input_file
         Path to the data file.
     """
-    added_tobj = qtc.Signal(SignalPacket)  # data=TrackedObject
-    added_tobjs = qtc.Signal(SignalPacket)  # data=list
-    added_instance = qtc.Signal(SignalPacket)  #  data=Instance
-    added_instances = qtc.Signal(SignalPacket)  # data=List[instance]
-    deleted_tobj = qtc.Signal(SignalPacket) # data=Tuple[tobj_idx, new_tobj_len]
-    deleted_instance = qtc.Signal(SignalPacket)  # data=Tuple[tobj_idx, instance_idx, new_instances_len]
-    pass_tobj = qtc.Signal(SignalPacket)
+    data_updated = qtc.Signal(SignalPacket)
+    pass_data = qtc.Signal(SignalPacket)
     curr_frame_data = qtc.Signal(SignalPacket)
 
     def __init__(self,
@@ -42,7 +37,8 @@ class DataHandler(qtc.QObject):
                 "Must pass input file or csv like string to DataHandler"
             )
 
-        self.name = name
+        self.input_file = input_file
+        self.input_str = input_str
         if input_file:
             self.input_file = Path(input_file)
         else:
@@ -51,7 +47,7 @@ class DataHandler(qtc.QObject):
 
         self._read_from_input()
         self._fixed_head = "track_id object_class".split()
-        self._update_tracked_objs()
+        self._update()
 
     def _read_from_input(self):
         """Read data from CSV."""
@@ -65,38 +61,64 @@ class DataHandler(qtc.QObject):
             csv_reader = csv.DictReader(f_csv)
             line_count = 0
             for instance in csv_reader:
+                tags = {}
+                new_instance: dict = {}
                 track_id = int(instance.pop("track_id"))
                 object_class = instance.pop("object")  # TEMP: Repair this
                 for key in to_number:
                     if key == "frame_id":
-                        instance[key] = int(float(instance["frame_id"]))
+                        new_instance[key] = int(float(instance.pop("frame_id")))
                     else:
                         # the numbers could be of type `int` of `float`
                         try:
-                            instance[key] = int(instance[key])
+                            val = instance.pop(key)
+                            new_instance[key] = int(val)
                         except ValueError:
                             try:
-                                instance[key] = float(instance[key])
+                                new_instance[key] = float(val)
                             except ValueError as v:
                                 raise v(f"Cannot convert data of key {key}"
                                         "to `int` of `float`.")
+                # tags
+                for tag, val in instance.items():
+                    tags[tag] = val
+                new_instance["tags"] = tags
+                
                 if self.tracked_objs.get(track_id) is None:
+                    # TODO: Should we use the internal methods?
                     self.tracked_objs[track_id] = TrackedObject(
                         track_id=track_id, object_class=object_class,
-                        instance=instance)
+                        instance=new_instance)
                 else:
-                    self.tracked_objs[track_id].add_instance(instance)
+                    self.tracked_objs[track_id].add_instance(new_instance, update=False)
+
+            # For possibly performance purpose
+            for tracked_obj in self.tracked_objs.values():
+                tracked_obj._update()
         finally:
             if self.input_file:
                 f_csv.close()
 
     def __getitem__(self, index):
-        return self.tracked_objs[index]
+        return list(self.tracked_objs.values())[index]
+
+    def get_instance_sl(self, packet: SignalPacket):
+        d = packet.data
+        instance = self.tracked_objs[d[0]][d[1]]
+        self.pass_instance.emit(
+            SignalPacket(sender=self.__class__.__name__, data=d)
+        )
 
     def __iter__(self):
         self._iter = iter(self.tracked_objs)
         self._iter_idx = None
         return self
+
+    @property
+    def instances(self):
+        return [instance
+                for t_obj in self[:] 
+                for instance in t_obj[:]]
 
     @property
     def frames(self):
@@ -106,12 +128,9 @@ class DataHandler(qtc.QObject):
                 frames.add(instance.frame_id)
         return sorted(list(frames))
 
-
-    # CONT: track_id to object_id???
     @property
     def object_classes(self):
         return list(set(t_obj.object_class for t_obj in self.tracked_objs.values()))
-
 
     def from_frame(self, frame_id, to: str = None) -> List[Instance]:
         ret = []
@@ -123,15 +142,26 @@ class DataHandler(qtc.QObject):
             if ins:
                 ret.extend(ins)
 
-        # if to:
-        #     if to.lower() == "frameinfo":
-        #         ret = FrameData.from_instances(frame_id, ret)
-        #     else:
-        #         raise ValueError(f"Cannot understand of type {type(to)}")
-
         return ret
 
-    def run_results_r(self, curr_results: SignalPacket):
+    def data_handler_sl(self, packet: SignalPacket):
+        dui: DataUpdateInfo = packet.data
+
+        # We just consider for an Instance object to
+        # other Instance or new TrackedObject
+        if dui.add:
+            self._add_instance(dui.add)
+        elif dui.delete:
+            pos: Tuple[int, int] = dui.delete
+            self._delete_instance(*pos) # TODO: How to delete object??
+        elif dui.edit:
+            old_pos, new_obj = dui.edit
+            self._edit(old_pos, new_obj)
+            
+
+        self._update()
+
+    def run_sresults_sl(self, curr_sresults: SignalPacket):
         """Receive result from current index of session.
 
         Play mode???
@@ -168,108 +198,215 @@ class DataHandler(qtc.QObject):
     def __len__(self):
         return len(self.tracked_objs)
 
-    # def add_r(self, packet: SignalPacket):
-    #     tobj = packet.data
-    #     self.append(tobj)
 
-    def append(self, data: Union[TrackedObject, Instance, List[Instance]]):
-        """Add an tracked_objs object."""
-        # TODO: Rename as add
-        if (isinstance(data, TrackedObject) and
-            data.track_id >= len(self.tracked_objs)):
+    def _edit(self, pos: Tuple[int, int], new_obj: Union[Instance, TrackedObject]):
+        self._delete_instance(*pos, emit_signal=False)
+        if isinstance(new_obj, TrackedObject):
+            self._add_tobj(new_obj, emit_signal=False)
+        elif isinstance(new_obj, Instance):
+            self._add_instance(new_instance, emit_signal=False)
+        else:
+            raise ValueError(f"Do not support data of type {type(new_obj)}")
+
+        # self.edited_instance.emit(
+        #     SignalPacket(sender=self.__class__.__name__, data=(pos, new_obj))
+        # )
+        dui = DataUpdateInfo(edit=(pos, new_obj))
+        self.data_updated.emit(
+            SignalPacket(sender=self.__class__.__name__, data=dui)
+        )
+
+        return self
+
+    def get_data_sl(self, packet: SignalPacket):
+        data = self.get_data(*packet.data)
+        self.pass_data.emit(
+            SignalPacket(sender=self.__class__.__name__, data=data)
+        )
+
+    def get_data(self, track_id, instance_id):
+        return self[track_id][instance_id]
+        
+
+    def add(self, data: Union[TrackedObject, Instance, List[Instance]]):
+        """Add data.
+
+        The passed data should already have `track_id` and `object_id` set
+        beforehand.
+        """
+        if (isinstance(data, TrackedObject) and len(data) == 1):
                 self._add_tobj(data)
 
         elif isinstance(data, Instance):
             self._add_instance(data)
 
-        elif isinstance(data, list) or isinstance(data, TrackedObject):
-            if len(data) == 1:
-                self._add_instance(data[0])
-            else:
-                print("here")
-                self._add_instances(data)
+        # elif isinstance(data, list) or isinstance(data, TrackedObject):
+        #     if len(data) == 1:
+        #         self._add_instance(data[0])
+        #     else:
+        #         self._add_instances(data)
 
         else:
-            raise ValueError(f"Data of typed {type(data)} is not supported.")
+            raise ValueError(f"Data of type {type(data)} "
+                             f"with len of {len(data)}is not supported.")
+
+        dui = DataUpdateInfo(added=data)
+        self.data_updated.emit(SignalPacket(sender=self.__class__.__name__, data=dui))
 
         return self
 
+    def move(self, old_pos, obj: Union[TrackedObject, Instance]):
+        self._delete_instance(*old_pos)
+        if isinstance(obj, TrackedObject):
+            self._add_tobj(obj)
+        else:
+            self._add_instance(obj)
 
-    def _add_instance(self, data, emit_signal=True):
-        """Add `Instance` to an already created `TrackedObject`."""
-        if data.track_id >= len(self.tracked_objs):
-            raise Exception(f"Must instantiated the `TrackedObject` with "
-                            f"`track_id`={data.track_id} first.")
-        self.tracked_objs[data.track_id].add_instance(data)
-        if emit_signal:
-            self.added_instance.emit(
-                SignalPacket(sender=self.name, data=data)
-            )
-
-    def _add_instances(self, data: List[Instance]):
-        for d in data:
-            if not isinstance(d, Instance):
-                raise ValueError(f"Wrong data type passed: {type(data)}")
-            self._add_instance(d, emit_signal=False)
-        self.added_instances.emit(
-            SignalPacket(sender=self.name, data=data)
+        dui = DataUpdateInfo(moved=(old_pos, obj))
+        self.data_updated.emit(
+            SignalPacket(sender=self.__class__.__name__, data=dui)
         )
+        
+
+    def replace(self, instance):
+        self._replace(instance)
+
+        dui = DataUpdateInfo(replaced=instance)
+        self.data_updated.emit(
+            SignalPacket(sender=self.__class__.__name__, data=dui)
+        )
+
+    def _replace(self, instance):
+        self._replace_instance(instance)
+
+    def _replace_instance(self, instance):
+        self._delete_instance(instance.track_id, instance.instance_id)
+        self._add_instance(instance)
+
+    def _add_instance(self, instance):
+        """Add `Instance` to an already created `TrackedObject`."""
+        if instance.track_id >= len(self.tracked_objs):
+            raise Exception(f"Must instantiated the `TrackedObject` with "
+                            f"`track_id`={instance.track_id} first.")
+        # The `append`, `insert` and how it is updated is handled by the
+        # `TrackedObject` class.
+        self.tracked_objs[instance.track_id].add_instance(instance)
+
+    # def _add_instances(self, data: List[Instance], emit_signal=True):
+    #     for d in data:
+    #         if not isinstance(d, Instance):
+    #             raise ValueError(f"Wrong data type passed: {type(data)}")
+    #         self._add_instance(d, emit_signal=False)
+    #     if emit_signal:
+    #         # self.added_instances.emit(
+    #         #     SignalPacket(sender=self.__class__.__name__, data=data)
+    #         # )
+    #         dui = DataUpdateInfo(added=data)
+    #         self.data_updated.emit(
+    #             SignalPacket(sender=self.__class__.__name__, data=dui)
+    #         )
 
     def _add_tobj(self, tobj):
-        self._update_tracked_objs()
         if len(tobj) != 1:
             raise Exception("Only can instantiated a `TrackedObject` with an `Instance`.")
-        if tobj.track_id < len(self.tracked_objs):
-            raise ValueError(f"`TrackedObject` with `track_id`={data.track_id} is already exist.")
 
-        if tobj.track_id != len(self.tracked_objs):
-            raise ValueError(f"The `track_id` should be {len(self.tracked_objs)}!")
+        if tobj.track_id > len(self):
+            tobj.change_track_id(len(self))
+        if tobj.track_id == len(self):
+            self._append_tobj(tobj)
+        else:
+            self._insert_tobj(tobj)
+
+    def _append_tobj(self, tobj):
         self.tracked_objs[tobj.track_id] = tobj
-        self.added_tobj.emit(
-            SignalPacket(sender=self.name, data=tobj)
+
+    def _insert_tobj(self, tobj):
+        old_tobjs = self.tracked_objs
+        keep_keys = list(range(tobj.track_id))
+        keep_tobjs = {k: old_tobjs[k] for k in keep_keys}
+
+        self.tracked_objs = {}
+        self.tracked_objs.update(keep_tobjs)
+        self.tracked_objs[tobj.track_id] = tobj
+        self.tracked_objs.update(
+            {k + 1: old_tobjs[k].change_track_id(k + 1)
+             for k in range(tobj.track_id, len(old_tobjs))}
         )
+        
 
     def delete(self, tobj_idx: int, instance_idx: int = None):
+        self._delete(tobj_idx, instance_idx)
+
+        dui = DataUpdateInfo(deleted=(tobj_idx, instance_idx))
+        self.data_updated.emit(
+            SignalPacket(sender=self.__class__.__name__, data=dui)
+        )
+
+        return self
+
+    def _delete(self, tobj_idx: int, instance_idx: int = None):
         if not isinstance(instance_idx, int):
+            if tobj_idx == len(self):
+                self._delete_tobj_end(tobj_idx)
+            else:
+                self._delete_tobj(tobj_idx)
+        else:
+            self._delete_instance(tobj_idx, instance_idx)
+        
+
+    def _delete_tobj_end(self, tobj_idx: int):
             try:
                 del self.tracked_objs[tobj_idx]
             except KeyError:
                 raise ValueError(f"`tobj_idx`={tobj_idx} does not exist")
-            self._update_tracked_objs()
-            self.deleted_tobj.emit(
-                SignalPacket(sender=self.name, data=(tobj_idx, len(self.tracked_objs)))
-            )
-            return self
 
-        try:
-            self.tracked_objs[tobj_idx].delete(instance_idx)
-        except KeyError:
-            raise ValueError(f"`tobj_idx`={tobj_idx} does not exist")
-        except IndexError:
-            raise ValueError(f"`instance_idx`={instance_idx} does not exist")
-        self._update_tracked_objs()
-        self.deleted_instance.emit(
-            SignalPacket(sender=self.name,
-                         data=(tobj_idx, instance_idx, len(self.tracked_objs[tobj_idx])))
-        )
-        return self
+    def _delete_tobj(self, tobj_idx: int, update=True):
+            try:
+                del self.tracked_objs[tobj_idx]
+            except KeyError:
+                raise ValueError(f"`tobj_idx`={tobj_idx} does not exist")
 
-    def _update_tracked_objs(self):
-        """Make sure `self.tracked_objs` is always sorted with no missed number."""
-        keys = list(self.tracked_objs.keys())
-        sort_ok = all(keys[i] == keys[i + 1] for i in range(len(keys) - 1))
+            if update:
+                self._update(keep_until=tobj_idx - 1)
 
-        old = self.tracked_objs
-        self.tracked_objs = {}
+    def _delete_instance(self, tobj_idx: int, instance_idx: int, update=True):
+            try:
+                self.tracked_objs[tobj_idx].delete(instance_idx, update)
+            except KeyError:
+                raise ValueError(f"`tobj_idx`={tobj_idx} does not exist")
+            except IndexError:
+                raise ValueError(f"`instance_idx`={instance_idx} does not exist")
+        
+    def _update(self, keep_until=None):
+        """Make sure `self.tracked_objs` is always sorted with no missed number.
+
+        Can be only used with `*delete` method.
+        """
+        # TODO: Make it better. And how about put it inside *insert method?
+        old_tobjs = self.tracked_objs
+        old_keys = list(old_tobjs.keys())
+        if isinstance(keep_until, int):
+            # TODO: Ensure the index until `keep_until` is also sorted
+            keep_keys = list(range(keep_until + 1))
+            keep_tobjs = {k: old_tobjs[k] for k in keep_keys}
+            old_tobjs = {k: old_tobjs[k] for k in list(old_tobjs.keys())
+                         if k not in keep_tobjs}
+            sort_ok = False
+        else:
+            keep_until = -1
+            keep_tobjs = {}
+            sort_ok = all(old_keys[i] == old_keys[i + 1] for i in range(len(old_keys) - 1))
+
         if not sort_ok:
-            keys = list(range(len(keys)))
-            for k, tobj in zip(keys, old.values()):
-                self.tracked_objs.update({k: tobj.change_track_id(k)})
+            self.tracked_objs = {}
+            self.tracked_objs.update(keep_tobjs)
+            for new_k, tobj in enumerate(old_tobjs.values(), keep_until + 1):
+                self.tracked_objs[new_k] = tobj.change_track_id(new_k)
 
-    def propogate_curr_frame_data_r(self, packet: SignalPacket):
+    def propogate_curr_frame_data_sl(self, packet: SignalPacket):
         # TODO: check the best way to pass ndarray
         frame, index = packet.data
         framedata = FrameData(frame, index, self.from_frame(index))
         self.curr_frame_data.emit(
-            SignalPacket(sender=self.name, data=framedata)
+            SignalPacket(sender=self.__class__.__name__, data=framedata)
         )

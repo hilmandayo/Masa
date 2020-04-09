@@ -95,18 +95,6 @@ class OCVSimpleTaggedVideo(OpenCVVideoCapture):
 
         return buff
 
-    # @staticmethod
-    # def BLUE():
-    #     return 0
-
-    # @staticmethod
-    # def GREEN():
-    #     return 1
-
-    # @staticmethod
-    # def RED():
-    #     return 2
-
 
 if __name__ == "__main__":
     buff = DummyBufferFactory.get_buffer("simple_video")

@@ -1,0 +1,1 @@
+from .instance_editor_dialog import editor_dialog_factory

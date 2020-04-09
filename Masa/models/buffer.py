@@ -8,7 +8,11 @@ import numpy as np
 
 from Masa.core.utils import resize_calculator, SignalPacket
 from Masa.core.data import Instance, TrackedObject
-from .session import BBSession
+
+# try:
+#     from .session import BBSession
+# except (ValueError, ImportError, ModuleNotFoundError):
+#     from pathlib import Path; _dir = Path(__file__).absolute().parent
 
 
 from collections import namedtuple
@@ -108,17 +112,28 @@ class Buffer(qtc.QThread):
 
 
     def get_frames(self, idxs: List[int]) -> List[Tuple[int, np.ndarray]]:
-        self._play = False
+        self.pause()
         frames = []
         for idx in idxs:
             self.video.set(cv2.CAP_PROP_POS_FRAMES, idx)
             _, frame = self.video.read()
             frames.append((idx, frame))
 
-        self.video.set(cv2.CAP_PROP_POS_FRAMES, self.idx)
-        self._play = True
-        self.pass_frames.emit(frames)
+        if self.idx is None:
+            _idx = 0
+        else:
+            _idx = self.idx
+        self.video.set(cv2.CAP_PROP_POS_FRAMES, _idx)
+        # TODO: Is below legal if un-commented?
+        # self.play()
+        return frames
 
+    def get_frames_sl(self, packet: SignalPacket):
+        frame_ids = self.get_frames(packet.data)
+        self.pass_frames.emit(
+            SignalPacket(sender=self.__class__.__name__, data=frame_ids)
+        )
+        self.play()
 
     def set_backward(self, backward: bool):
         """Set the buffer to backward or not.
@@ -140,7 +155,7 @@ class Buffer(qtc.QThread):
             self._play = prev_play_status
             self.backwarded.emit(self.backward)
 
-    def session_init_r(self, packet: SignalPacket):
+    def session_init_sl(self, packet: SignalPacket):
         self.pause()
         packet = packet.data
         session = packet.session

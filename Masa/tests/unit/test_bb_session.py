@@ -28,7 +28,7 @@ def test_init_session_tobj(edh, s_tobj_l):
     bbs = BBSession(edh)
     # bbs.added_tobj.connect(edh.add_r)
 
-    bbs.add_tobj_r(SignalPacket(sender="dummy", data=tobj))
+    bbs.add_tobj_sl(SignalPacket(sender="dummy", data=tobj))
     assert all([
         len(edh) == 1,
         edh[0] == tobj,
@@ -37,7 +37,7 @@ def test_init_session_tobj(edh, s_tobj_l):
 
 def test_add_instance(bbs, s_tobj_l):
     prev_len = len(bbs.get_tobj(s_tobj_l.track_id))
-    bbs.add_instance_r(SignalPacket(sender="dummy", data=s_tobj_l))
+    bbs.add_instance_sl(SignalPacket(sender="dummy", data=s_tobj_l))
 
     assert all([
         len(bbs.get_tobj(s_tobj_l.track_id)) == prev_len + 1,

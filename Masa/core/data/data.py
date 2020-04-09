@@ -1,5 +1,6 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import ClassVar, List, Union, Optional
+from typing import List, Union, Optional, Dict, Tuple
 
 
 @dataclass(order=True)
@@ -13,7 +14,7 @@ class Instance:
     x2: Union[int, float]
     y2: Union[int, float]
     frame_id: int
-    tag = "dummy"
+    tags: Dict[str, List[str]]
     # parent: Optional[TrackedObject] = None
 
 
@@ -37,22 +38,44 @@ class TrackedObject:
     instance: dict = field(repr=False)
     _fixed: List[str] = field(default_factory=fixed_fields)
     instances: List[dict] = field(default_factory=list, init=False)
-    tags: dict = field(default_factory=default_tags)
+    tags: dict = field(init=False, default_factory=lambda: defaultdict(set))
 
     def __post_init__(self):
         self.add_instance(self.instance)
 
-    def add_instance(self, instance: Union[dict, Instance]):
+    def add_instance(self, instance: Union[dict, Instance], update=True):
         if isinstance(instance, dict):
             instance = self._dict_to_instance(instance)
-        self.instances.append(instance)
+
+        # TODO: Settle this.
+        # self._update_tags(instance)
+
+        if instance.instance_id > len(self.instance):
+            instance.instance_id = len(self.instances)
+        if instance.instance_id == len(self.instances):
+            self.instances.append(instance)
+        else:
+            self.instances.insert(instance.instance_id, instance)
+
+        if update:
+            self._update()
+
+    def _update_tags(self, intance: Instance):
+        for tag, value in instance.tags.items():
+            if not value:
+                pass
+
+    def _update(self):
+        # self.instances.sort(key=lambda i: i.frame_id)
+        for i, instance in enumerate(self.instances):
+            instance.instance_id = i
 
     def _dict_to_instance(self, instance: dict):
         i = instance
         instance = Instance(self.track_id, self.object_class,
                             len(self.instances),
                             i["x1"], i["y1"], i["x2"], i["y2"],
-                            i["frame_id"])
+                            i["frame_id"], i["tags"])
         return instance
 
     def change_track_id(self, track_id):
@@ -61,8 +84,10 @@ class TrackedObject:
             instance.track_id = self.track_id
         return self
 
-    def delete(self, idx):
+    def delete(self, idx, update=True):
         del self.instances[idx]
+        if update:
+            self._update()
         return self
 
     def __getitem__(self, index):

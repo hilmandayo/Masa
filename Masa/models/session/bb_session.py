@@ -26,10 +26,10 @@ class BBSession(Session):
     def __call__(self, frame, index):
         self.run(frame, idx)
 
-    def add_tobj_r(self, packet: SignalPacket):
+    def add_tobj_sl(self, packet: SignalPacket):
         self._dh.append(packet.data)
 
-    def add_instance_r(self, packet: SignalPacket):
+    def add_instance_sl(self, packet: SignalPacket):
         self._dh.append(packet.data)
         
 

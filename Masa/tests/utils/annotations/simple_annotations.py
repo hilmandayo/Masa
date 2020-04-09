@@ -46,19 +46,23 @@ class SimpleAnnotationsF:
         """
         # TODO: Make it better
         retval =  [
-            [0, 31, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
-            [0, 35, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
-            [0, 37, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
+            [0, 35, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
+            [0, 37, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
+            [0, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
             [1, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
             [2, 45, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
             [2, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
             [2, 50, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
             [3, 46, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
-            [3, 47, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
+            [3, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
             [3, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
             [4, 55, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
             [4, 58, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
-            [5, 70, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
+            [5, 1, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
+            [6, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
+            [7, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
+            [7, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
+            [8, 44, 10, 10, 20, 20, "road_scene", "green_traffic_light", "far"],
             ]
 
         if increase_track_id is not None:

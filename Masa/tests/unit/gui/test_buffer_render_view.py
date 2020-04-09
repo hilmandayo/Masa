@@ -47,7 +47,7 @@ def test_receive_curr_FrameData(brv, m_buffer, data_handler, s_tobj_instance_l):
     dummy_frame = np.zeros([60, 60, 3], np.uint8)
     dummy_idx = 2
     data_handler.curr_frame_data.connect(brv.set_frame_data_r)
-    data_handler.propogate_curr_frame_data_r(
+    data_handler.propogate_curr_frame_data_sl(
         SignalPacket("dummy", (dummy_frame, dummy_idx))
     )
 
