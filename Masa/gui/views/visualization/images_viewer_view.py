@@ -91,8 +91,9 @@ class ImagesViewerView(qtw.QWidget):
     def tags(self):
         tags = defaultdict(set)
         for row_info in self._grid_map.values():
-            for tag_key, tag_value in row_info["meta"].items():
-                tags[tag_key].add(tag_value)
+            for img_btn in row_info["image_buttons"]:
+                for tag_key, tag_value in img_btn.meta.items():
+                    tags[tag_key].add(tag_value)
 
         return {k: list(v) for k, v in tags.items()}
 
@@ -129,7 +130,7 @@ class ImagesViewerView(qtw.QWidget):
                                 x2 = int(x2)
                                 y2 = int(y2)
                         crop = frame[y1:y2 + 1, x1: x2 + 1]
-                        cv2.imwrite(f"/tmp/{uuid.uuid4()}.jpg", frame)
+                        cv2.imwrite(f"/tmp/{idx}.jpg", crop)
                         img_btn.set_np(crop)
 
     def __getitem__(self, idx):

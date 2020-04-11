@@ -115,8 +115,9 @@ class Buffer(qtc.QThread):
         self.pause()
         frames = []
         for idx in idxs:
-            self.video.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            _, frame = self.video.read()
+            frame = self.get_frame(idx)
+            # self.video.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            # _, frame = self.video.read()
             frames.append((idx, frame))
 
         if self.idx is None:
@@ -133,7 +134,6 @@ class Buffer(qtc.QThread):
         self.pass_frames.emit(
             SignalPacket(sender=self.__class__.__name__, data=frame_ids)
         )
-        self.play()
 
     def set_backward(self, backward: bool):
         """Set the buffer to backward or not.

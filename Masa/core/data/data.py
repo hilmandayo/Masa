@@ -35,10 +35,10 @@ class TrackedObject:
     # TODO: Rename `track_id` to `object_id`
     track_id: int
     object_class: str
-    instance: dict = field(repr=False)
+    instance: Union[dict, Instance] = field(repr=False)
     _fixed: List[str] = field(default_factory=fixed_fields)
     instances: List[dict] = field(default_factory=list, init=False)
-    tags: dict = field(init=False, default_factory=lambda: defaultdict(set))
+    _tags: dict = field(init=False, default_factory=lambda: defaultdict(set))
 
     def __post_init__(self):
         self.add_instance(self.instance)
@@ -47,10 +47,9 @@ class TrackedObject:
         if isinstance(instance, dict):
             instance = self._dict_to_instance(instance)
 
-        # TODO: Settle this.
-        # self._update_tags(instance)
+        self._update_tags(instance)
 
-        if instance.instance_id > len(self.instance):
+        if instance.instance_id > len(self.instances) or instance.instance_id == -1:
             instance.instance_id = len(self.instances)
         if instance.instance_id == len(self.instances):
             self.instances.append(instance)
@@ -60,10 +59,21 @@ class TrackedObject:
         if update:
             self._update()
 
-    def _update_tags(self, intance: Instance):
+    def _update_tags(self, instance: Instance):
+        # Update `Instance` tags.
+        ins_tags = list(instance.tags.keys())
+        for tag in self._tags.keys():
+            if tag not in ins_tags:
+                instance.tags[tag] = None
+
+        # Update `TrackedObject` tags.
+        tobj_tags = list(self._tags.keys())
         for tag, value in instance.tags.items():
-            if not value:
-                pass
+            self._tags[tag].add(value)
+
+    @property
+    def tags(self):
+        return {tag: list(vals) for tag, vals in self._tags.items()}
 
     def _update(self):
         # self.instances.sort(key=lambda i: i.frame_id)

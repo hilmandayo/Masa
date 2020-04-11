@@ -9,7 +9,7 @@ try:
     from Masa.models import Buffer
     # TODO: Make `SessionsVisualizerView` or `SessionVisualizerView`?
     from ..views.visualization.sessions_visualizer_view import SessionsVisualizerView, ImagesViewerView
-    from ..dialog.instance_editor_dialog import editor_dialog_factory
+    from ..dialog.instance_editor_dialog import InstanceEditorDialog
 except (ValueError, ImportError, ModuleNotFoundError):
     from pathlib import Path; _dir = Path(__file__).absolute().parent
     import sys
@@ -19,7 +19,7 @@ except (ValueError, ImportError, ModuleNotFoundError):
     from images_viewer_view import ImagesViewerView
 
     sys.path.append(str(_dir.parent / "dialog"))
-    from instance_editor_dialog import editor_dialog_factory
+    from instance_editor_dialog import InstanceEditorDialog
 
     # sys.path.append(str(_dir.parent.parent / "core" / "data"))
     # from data import Instance
@@ -33,7 +33,8 @@ from Masa.core.utils import SignalPacket, DataUpdateInfo
 
 class SessionVisualizer(qtw.QWidget):
     req_frames = qtc.Signal(SignalPacket)
-    req_data = qtc.Signal(SignalPacket)
+    req_datainfo = qtc.Signal(SignalPacket)
+    prop_data_change = qtc.Signal(SignalPacket)
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -126,7 +127,7 @@ class SessionVisualizer(qtw.QWidget):
         self.request_data(packet.data)
         
     def request_data(self, pos: Tuple[int, int]):
-        self.req_data.emit(
+        self.req_datainfo.emit(
             SignalPacket(sender=self.__class__.__name__, data=pos)
         )
 
@@ -134,17 +135,25 @@ class SessionVisualizer(qtw.QWidget):
     def tags(self):
         tags = defaultdict(set)
         for iv in self.view._images_viewers.values():
-            for tag_key, tag_value in iv.tags:
-                tags[tag_key].add(tag_value)
+            for tag_key, tag_value in iv.tags.items():
+                tags[tag_key] = tags[tag_key].union(tag_value)
 
         return {k: list(v) for k, v in tags.items()}
 
-    def recieve_data_sl(self, packet: SignalPacket):
-        instance = packet.data
-        editor_dialog_factory.max_n_tobjs = None
-        editor_dialog_factory.tags = self.tags
-        ied = editor_dialog_factory("instance editor", instance)
-        ide.show()
+    def receive_datainfo_sl(self, packet: SignalPacket):
+        di = packet.data
+        if di.tobj is not None:
+            raise ValueError(f"Support for `TrackedObject` is not implemented yet.")
+
+        ied = InstanceEditorDialog(di.instance, di.obj_classes, di.tags)
+        ied.prop_data_change.connect(self._propogate_data_change_sl)
+        ied.exec_()
+
+    def _propogate_data_change_sl(self, packet: SignalPacket):
+        # CONT: Propagate this...
+        self.prop_data_change.emit(
+            SignalPacket(sender=self.__class__.__name__, data=packet.data)
+        )
 
     def data_update_sl(self, packet: SignalPacket):
         dui: DataUpdateInfo = packet.data
@@ -172,7 +181,7 @@ class SessionVisualizer(qtw.QWidget):
                 raise ValueError(f"Do not support data {dui.added}")
             # TODO: Handle repairing all other track_id
 
-        if dui.deleted:
+        elif dui.deleted:
             for iv in self:
                 lbl = iv.labels_mapping(dui.deleted[0])
                 if lbl is not None:
@@ -188,9 +197,10 @@ class SessionVisualizer(qtw.QWidget):
                     iv._update(label_keep=lm[idx - 1],
                                 update_track_id=-1)
 
-        if dui.replaced:
+        elif dui.replaced:
             pass
-        if dui.moved:
+        elif dui.moved:
+            # CONT: From here
             pass
 
     @property

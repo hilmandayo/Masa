@@ -14,6 +14,6 @@ def session_visualizer_view(qtbot, buff, data_handler):
 
 
 def test_request_from_images_viewers(svv, data_handler):
-    svv.req_data.connect(data_handler.get_data_sl)
-    data_handler.pass_data(svv.receive_data_sl)
+    svv.req_datainfo.connect(data_handler.get_datainfo_sl)
+    data_handler.pass_datainfo(svv.receive_datainfo_sl)
 

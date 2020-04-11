@@ -1,3 +1,4 @@
+from collections import defaultdict
 from io import StringIO
 from pathlib import Path
 from typing import Union, List, Dict, Tuple
@@ -6,7 +7,7 @@ import csv
 from PySide2 import QtCore as qtc
 
 from Masa.core.data import TrackedObject, Instance
-from Masa.core.utils import SignalPacket, DataUpdateInfo, FrameData
+from Masa.core.utils import SignalPacket, DataUpdateInfo, FrameData, DataInfo
 
 
 class DataHandler(qtc.QObject):
@@ -23,7 +24,7 @@ class DataHandler(qtc.QObject):
         Path to the data file.
     """
     data_updated = qtc.Signal(SignalPacket)
-    pass_data = qtc.Signal(SignalPacket)
+    pass_datainfo = qtc.Signal(SignalPacket)
     curr_frame_data = qtc.Signal(SignalPacket)
 
     def __init__(self,
@@ -132,6 +133,23 @@ class DataHandler(qtc.QObject):
     def object_classes(self):
         return list(set(t_obj.object_class for t_obj in self.tracked_objs.values()))
 
+    @property
+    def object_class_mapping(self):
+        obj_cls_map = defaultdict(list)
+        for tobj in self.tracked_objs.values():
+            obj_cls_map[tobj.object_class].append(tobj.track_id)
+
+        return obj_cls_map
+
+    @property
+    def tags(self):
+        tags = defaultdict(set)
+        for tobj in self:
+            for tag, values in tobj.tags.items():
+                tags[tag] |= set(values)
+
+        return {tag: list(vals) for tag, vals in tags.items()}
+
     def from_frame(self, frame_id, to: str = None) -> List[Instance]:
         ret = []
         for tobj in self.tracked_objs.values():
@@ -144,19 +162,21 @@ class DataHandler(qtc.QObject):
 
         return ret
 
-    def data_handler_sl(self, packet: SignalPacket):
+    def data_update_sl(self, packet: SignalPacket):
         dui: DataUpdateInfo = packet.data
 
         # We just consider for an Instance object to
         # other Instance or new TrackedObject
-        if dui.add:
-            self._add_instance(dui.add)
-        elif dui.delete:
-            pos: Tuple[int, int] = dui.delete
-            self._delete_instance(*pos) # TODO: How to delete object??
-        elif dui.edit:
-            old_pos, new_obj = dui.edit
-            self._edit(old_pos, new_obj)
+        if dui.added:
+            self.add(dui.added)
+
+        elif dui.deleted:
+            pos: Tuple[int, int] = dui.deleted
+            self.delete(*pos) # TODO: How to delete object??
+        elif dui.replaced:
+            pass
+        elif dui.moved:
+            self.move(*dui.moved)
             
 
         self._update()
@@ -218,14 +238,19 @@ class DataHandler(qtc.QObject):
 
         return self
 
-    def get_data_sl(self, packet: SignalPacket):
-        data = self.get_data(*packet.data)
-        self.pass_data.emit(
+    def get_datainfo_sl(self, packet: SignalPacket):
+        data = self.get_datainfo(*packet.data)
+        self.pass_datainfo.emit(
             SignalPacket(sender=self.__class__.__name__, data=data)
         )
 
-    def get_data(self, track_id, instance_id):
-        return self[track_id][instance_id]
+    def get_datainfo(self, track_id, instance_id):
+        di = DataInfo(
+            instance=self[track_id][instance_id],
+            obj_classes=self.object_class_mapping,
+            tags=self.tags)
+
+        return di
         
 
     def add(self, data: Union[TrackedObject, Instance, List[Instance]]):
@@ -239,12 +264,6 @@ class DataHandler(qtc.QObject):
 
         elif isinstance(data, Instance):
             self._add_instance(data)
-
-        # elif isinstance(data, list) or isinstance(data, TrackedObject):
-        #     if len(data) == 1:
-        #         self._add_instance(data[0])
-        #     else:
-        #         self._add_instances(data)
 
         else:
             raise ValueError(f"Data of type {type(data)} "
@@ -325,8 +344,7 @@ class DataHandler(qtc.QObject):
         keep_keys = list(range(tobj.track_id))
         keep_tobjs = {k: old_tobjs[k] for k in keep_keys}
 
-        self.tracked_objs = {}
-        self.tracked_objs.update(keep_tobjs)
+        self.tracked_objs = keep_tobjs
         self.tracked_objs[tobj.track_id] = tobj
         self.tracked_objs.update(
             {k + 1: old_tobjs[k].change_track_id(k + 1)

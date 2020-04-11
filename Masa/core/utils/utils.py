@@ -11,6 +11,8 @@ SignalPacket = namedtuple("SignalPacket", "sender data")
 DataUpdateInfo = namedtuple("DataUpdateInfo", "added deleted replaced moved")
 DataUpdateInfo.__new__.__defaults__ = (None, None, None, None)
 FrameData = namedtuple("FrameData", "frame index data")
+DataInfo = namedtuple("DataInfo", "tobj instance obj_classes tags")
+DataInfo.__new__.__defaults__ = (None, None, None, None)
 
 
 def create_dirs(dirs: Union[list, str]):
@@ -45,12 +47,16 @@ def delete_dirs(dirs: Union[list, str]):
 def convert_np(frame: np.ndarray, to: str = "qpixmap", scale: bool = True,
                input_bgr: bool = True) -> Union[qtg.QPixmap, qtw.QGraphicsPixmapItem]:
     # https://stackoverflow.com/questions/34232632/convert-python-opencv-image-numpy-array-to-pyqt-qpixmap-image
+    if input_bgr:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
     frame = np.require(frame, np.uint8, "C")
     height, width, channel = frame.shape
     bytes_per_line = width * 3
-    frame = qtg.QImage(frame.data, width, height, bytes_per_line, qtg.QImage.Format_RGB888)
-    if input_bgr:
-        frame = frame.rgbSwapped()
+    # XXX: For some reasons, we need to copy it here.
+    #      If I do `frame = qtg.QPixmap.fromImage(frame.copy())`,
+    #      we will still got bad result.
+    frame = qtg.QImage(frame.data, width, height, bytes_per_line, qtg.QImage.Format_RGB888).copy()
     frame = qtg.QPixmap.fromImage(frame)
     if scale:
         frame = frame.scaled(width, height)

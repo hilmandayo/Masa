@@ -33,8 +33,8 @@ class ImageButton(qtw.QPushButton):
         if image is None:
             image = np.zeros([height, width, 3], dtype=np.uint8)
         self.set_np(image)
-        self.setIconSize(qtc.QSize(width, height))
-        self.setFixedSize(width, height)
+        # self.setIconSize(qtc.QSize(width, height))
+        # self.setFixedSize(width, height)
 
         self.clicked.connect(self._image_clicked)
 
@@ -47,10 +47,15 @@ class ImageButton(qtw.QPushButton):
         
 
     def set_np(self, image: np.ndarray):
+        height, width = image.shape[:2]
+        # XXX: Weird, sometimes, even if `input_bgr` is False, it is still
+        #      output OK.
         image = convert_np(image, to="qpixmap")
-        frame_icon = qtg.QIcon()
-        frame_icon.addPixmap(image)
+        frame_icon = qtg.QIcon(image)
         self.setIcon(frame_icon)
+
+        self.setIconSize(qtc.QSize(width, height))
+        self.setFixedSize(width, height)
         
 
 
