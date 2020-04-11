@@ -149,7 +149,9 @@ class InstanceEditorDialog(qtw.QDialog):
         self.layout().addRow(self.delete_btn)
 
     def delete(self):
-        dui = DataUpdateInfo(deleted=(self.instance.track_id, self.instance.instance_id))
+        dui = DataUpdateInfo(
+            deleted=(self.instance.track_id, self.instance.instance_id)
+        )
         self.prop_data_change.emit(
             SignalPacket(sender=self.__class__.__name__, data=dui)
         )
@@ -157,7 +159,7 @@ class InstanceEditorDialog(qtw.QDialog):
 
     def _make_new_data(self):
         new_tobj = False
-        if self.loc_boxes[0][1].currentIndex == 0:
+        if self.loc_boxes[0][1].currentIndex() == 0:
             # New TrackedObject.
             t_id = sum([len(t_id) for t_id in self.obj_clsses_map.values()])
             ins_id = 0

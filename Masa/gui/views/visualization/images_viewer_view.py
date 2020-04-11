@@ -80,7 +80,7 @@ class ImagesViewerView(qtw.QWidget):
 
     def init_data(self, tobjs: List[TrackedObject]):
         for tobj in tobjs:
-            self.add(tobj)
+            self._add(tobj)
 
     def request_frames(self):
         self.req_frames.emit(
@@ -204,6 +204,20 @@ class ImagesViewerView(qtw.QWidget):
         return retval
 
     def add(self, obj: Union[Instance, TrackedObject],
+            image: Optional[np.ndarray] = None):
+        self._add(obj, image)
+
+        if isinstance(obj, TrackedObject):
+            frame_ids = [ins.frame_id for ins in obj]
+        elif isinstance(obj, Instance):
+            frame_ids = [obj.frame_id]
+
+        self.req_frames.emit(
+            SignalPacket(sender=self.__class__.__name__, data=frame_ids)
+        )
+
+        
+    def _add(self, obj: Union[Instance, TrackedObject],
             image: Optional[np.ndarray] = None):
         label = self.labels_mapping(obj.track_id)
 

@@ -86,6 +86,7 @@ class SessionVisualizer(qtw.QWidget):
         return next_val
 
     def set_frames(self, frames: List[Tuple[int, np.ndarray]]):
+        # TODO: This can be optimized.
         for image_viewer in self:
             image_viewer.set_frames(frames)
         
@@ -102,6 +103,7 @@ class SessionVisualizer(qtw.QWidget):
         for oc in obj_cls_tobjs.keys():
             imv = ImagesViewerView(name=oc)
             imv.req_instance.connect(self.request_data_sl)
+            imv.req_frames.connect(self.request_frames_sl)
             self.view._add_images_viewer(oc, imv)
 
         for name, images_viewer in self.view._images_viewers.items():
@@ -110,6 +112,12 @@ class SessionVisualizer(qtw.QWidget):
         self.req_frames.emit(
             SignalPacket(sender=self.__class__.__name__, data=self.frame_ids)
         )
+
+    def request_frames_sl(self, packet: SignalPacket):
+        self.req_frames.emit(
+            SignalPacket(sender=self.__class__.__name__, data=packet.data)
+        )
+        
 
     def labels_mappings(self, track_id=None):
         retval = []
@@ -189,7 +197,8 @@ class SessionVisualizer(qtw.QWidget):
 
             # Update tracked_object
             for iv in self:
-                if iv.name != dui.added.object_class:
+                # CONT: Deleting problem. Solve it. Also, regarding the plus 1 and minus 1 things...
+                if iv.name != dui.deleted.object_class:
                     lm = iv.labels_mapping()
                     for idx in range(len(lm)):
                         if lm[idx][1] >= t_id:
@@ -200,8 +209,14 @@ class SessionVisualizer(qtw.QWidget):
         elif dui.replaced:
             pass
         elif dui.moved:
-            # CONT: From here
-            pass
+            old_pos, obj = dui.moved
+            for iv in self:
+                lbl = iv.labels_mapping(old_pos[0])
+                if lbl is not None:
+                    iv.delete(lbl, old_pos[1])
+            for iv in self:
+                if iv.name == obj.object_class:
+                    iv.add(obj)
 
     @property
     def frame_ids(self):
