@@ -394,6 +394,8 @@ class DataHandler(qtc.QObject):
                 raise ValueError(f"`tobj_idx`={tobj_idx} does not exist")
             except IndexError:
                 raise ValueError(f"`instance_idx`={instance_idx} does not exist")
+            if len(self.tracked_objs[tobj_idx]) == 0:
+                self._delete(tobj_idx)
         
     def _update(self, keep_until=None):
         """Make sure `self.tracked_objs` is always sorted with no missed number.

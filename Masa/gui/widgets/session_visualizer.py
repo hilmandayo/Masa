@@ -166,6 +166,8 @@ class SessionVisualizer(qtw.QWidget):
     def data_update_sl(self, packet: SignalPacket):
         dui: DataUpdateInfo = packet.data
         if dui.added:
+            # CONT: From here. Make a function for this.
+            self._add(dui.added)
             if isinstance(dui.added, Instance):
                 for iv in self:
                     if iv.labels_mapping(dui.added.track_id) is not None:
@@ -178,33 +180,24 @@ class SessionVisualizer(qtw.QWidget):
 
                 # Update tracked_object
                 for iv in self:
-                    if iv.name != dui.added.object_class:
+                    if iv.name != object_class:
                         lm = iv.labels_mapping()
-                        for idx in range(len(lm)):
-                            if lm[idx][1] >= t_id:
+                        print("*before:", lm)
+                        # Assuming `lm` is 0,1,..n
+                        add_lbl = None
+                        for lbl, t_id in lm:
+                            if t_id >= dui.deleted[0]:
+                                add_lbl = lbl
                                 break
-                        iv._update(label_keep=lm[idx - 1],
-                                   update_track_id=1)
+                        if add_lbl is not None:
+                            iv._update(label_keep=add_lbl - 1,
+                                    mode=1)
+                        print("*after:", iv.labels_mapping())
             else:
                 raise ValueError(f"Do not support data {dui.added}")
-            # TODO: Handle repairing all other track_id
 
         elif dui.deleted:
-            for iv in self:
-                lbl = iv.labels_mapping(dui.deleted[0])
-                if lbl is not None:
-                    iv.delete(lbl, dui.deleted[1])
-
-            # Update tracked_object
-            for iv in self:
-                # CONT: Deleting problem. Solve it. Also, regarding the plus 1 and minus 1 things...
-                if iv.name != dui.deleted.object_class:
-                    lm = iv.labels_mapping()
-                    for idx in range(len(lm)):
-                        if lm[idx][1] >= t_id:
-                            break
-                    iv._update(label_keep=lm[idx - 1],
-                                update_track_id=-1)
+            self._delete(*dui.deleted)
 
         elif dui.replaced:
             pass
@@ -217,6 +210,31 @@ class SessionVisualizer(qtw.QWidget):
             for iv in self:
                 if iv.name == obj.object_class:
                     iv.add(obj)
+
+    def _delete(self, t_id, ins_id):
+        for iv in self:
+            lbl = iv.labels_mapping(t_id)
+            if lbl is not None:
+                # print("before:", iv.labels_mapping())
+                iv.delete(lbl, ins_id)
+                object_class = iv.name
+                # print("after:", iv.labels_())
+
+        # Update tracked_object
+        for iv in self:
+            if iv.name != object_class:
+                lm = iv.labels_mapping()
+                # print("*before:", lm)
+                del_lbl = None
+                for nlbl, nt_id in lm:
+                    if nt_id >= t_id:
+                        del_lbl = nlbl
+                        break
+                if del_lbl is not None:
+                    iv._update(label_keep=del_lbl - 1,
+                                mode=-1)
+                # print("*after:", iv.labels_mapping())
+        
 
     @property
     def frame_ids(self):
