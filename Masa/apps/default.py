@@ -1,5 +1,6 @@
 from PySide2 import QtWidgets as qtw
-from Masa.gui.widgets import VideoPlayer, SessionVisualizer
+from Masa.gui.widgets.video_player import VideoPlayer
+from Masa.gui.widgets.session_visualizer import SessionVisualizer
 
 class ImageExtractorApp():
     def __init__(self, data_handler, parent=None):
@@ -18,6 +19,8 @@ class ImageExtractorApp():
 
         self.session_vis.prop_data_change.connect(data_handler.data_update_sl)
         data_handler.data_updated.connect(self.session_vis.data_update_sl)
+
+        self.session_vis.jump_to_frame.connect(self.video_player.jump_frame_sl)
 
         self.session_vis.init_data(data_handler[:])
 

@@ -1,11 +1,5 @@
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
-try:
-    from .images_viewer_view import ImagesViewerView
-except (ValueError, ImportError, ModuleNotFoundError):
-    from images_viewer_view import ImagesViewerView
-    import sys;
-    from pathlib import Path; _dir = Path(__file__).absolute().parent
-    sys.path.append(str(_dir.parent.parent.parent.parent))
+from .images_viewer_view import ImagesViewerView
 
 
 class SessionsVisualizerView(qtw.QScrollArea):

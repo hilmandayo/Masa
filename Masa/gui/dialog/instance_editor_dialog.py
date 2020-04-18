@@ -1,41 +1,9 @@
 from copy import deepcopy
 from typing import List, Dict
 from PySide2 import QtWidgets as qtw, QtCore as qtc
-try:
-    from Masa.core.data import Instance
-except (ModuleNotFoundError, ImportError):
-    from pathlib import Path; _dir = Path(__file__).absolute().parent
-    import sys
-    sys.path.append(str(_dir.parent.parent.parent))
+
 from Masa.core.data import Instance, TrackedObject
 from Masa.core.utils import SignalPacket, DataUpdateInfo
-
-
-class EditorDialogFactory(qtc.QObject):
-    changed_tags = qtc.Signal(SignalPacket)
-    def __init__(self):
-        super().__init__()
-        self.max_n_tobjs = None
-
-    def set_max_n_tobjs_sl(self, packet: SignalPacket):
-        self.max_n_tobjs = packet.data
-
-    def set_tags_sl(self, packet: SignalPacket):
-        self.tags: Dict[str, dict] = packet.data
-
-    def __call__(self, dialog: str, instance):
-        if dialog.lower() == "instance editor":
-            ied = InstanceEditorDialog(instance, self.max_n_tobjs, self.tags,
-                                       self.cls_track_ids)
-            # ied.changed_tags.connect(self._propogate_changed_tags_sl)
-            return ied
-
-    # def _propogate_changed_tags_sl(self, packet: SignalPacket):
-    #     self.changed_tags.emit(
-    #         SignalPacket(sender=self.__class__.__name__, data=packet.data)
-    #     )
-
-editor_dialog_factory = EditorDialogFactory()
 
 
 class InstanceEditorDialog(qtw.QDialog):

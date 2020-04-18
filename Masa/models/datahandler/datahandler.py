@@ -180,6 +180,7 @@ class DataHandler(qtc.QObject):
             
 
         self._update()
+        print(self)
 
     def run_sresults_sl(self, curr_sresults: SignalPacket):
         """Receive result from current index of session.
@@ -244,9 +245,14 @@ class DataHandler(qtc.QObject):
             SignalPacket(sender=self.__class__.__name__, data=data)
         )
 
-    def get_datainfo(self, track_id, instance_id):
+    def get_datainfo(self, track_id=None, instance_id=None):
+        if track_id is None and instance_id is None:
+            instance = None
+        else:
+            instance = self[track_id][instance_id]
+
         di = DataInfo(
-            instance=self[track_id][instance_id],
+            instance=instance,
             obj_classes=self.object_class_mapping,
             tags=self.tags)
 
@@ -275,7 +281,14 @@ class DataHandler(qtc.QObject):
         return self
 
     def move(self, old_pos, obj: Union[TrackedObject, Instance]):
+        prev_len = len(self)
         self._delete_instance(*old_pos)
+
+        # TODO: There must be a better way...
+        # CONT: Solve below logic
+        if old_pos[0] <= obj.track_id and prev_len == len(self) + 1:
+            obj.track_id -= 1
+
         if isinstance(obj, TrackedObject):
             self._add_tobj(obj)
         else:
@@ -285,8 +298,16 @@ class DataHandler(qtc.QObject):
         self.data_updated.emit(
             SignalPacket(sender=self.__class__.__name__, data=dui)
         )
-        
 
+    def __str__(self):
+        ret = f"DataHandler {str(self.input_file)}\n"
+        for tobj in self:
+            ret += f"\tTrackedObject ({tobj.track_id}, {tobj.object_class})\n"
+            for ins in tobj:
+                ret += f"\t\tInstance {ins.instance_id}\n"
+                
+        return ret[:-1]
+        
     def replace(self, instance):
         self._replace(instance)
 

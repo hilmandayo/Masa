@@ -1,31 +1,15 @@
 from collections import defaultdict
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 
 import numpy as np
 
-try:
-    from Masa.core.data import Instance, TrackedObject
-    from Masa.models import Buffer
-    # TODO: Make `SessionsVisualizerView` or `SessionVisualizerView`?
-    from ..views.visualization.sessions_visualizer_view import SessionsVisualizerView, ImagesViewerView
-    from ..dialog.instance_editor_dialog import InstanceEditorDialog
-except (ValueError, ImportError, ModuleNotFoundError):
-    from pathlib import Path; _dir = Path(__file__).absolute().parent
-    import sys
-
-    sys.path.append(str(_dir.parent / "views" / "visualization"))
-    from sessions_visualizer_view import SessionsVisualizerView
-    from images_viewer_view import ImagesViewerView
-
-    sys.path.append(str(_dir.parent / "dialog"))
-    from instance_editor_dialog import InstanceEditorDialog
-
-    # sys.path.append(str(_dir.parent.parent / "core" / "data"))
-    # from data import Instance
-
-    # sys.path.append(str(_dir.parent.parent / "models"))
-    # from buffer import Buffer
+from Masa.core.data import Instance, TrackedObject
+from Masa.models import Buffer
+# TODO: Make `SessionsVisualizerView` or `SessionVisualizerView`?
+from ..views.sessions_visualizer_view import SessionsVisualizerView
+from ..views.images_viewer_view import ImagesViewerView
+from ..dialog.instance_editor_dialog import InstanceEditorDialog
 
 from Masa.models import DataHandler
 from Masa.core.utils import SignalPacket, DataUpdateInfo
@@ -35,6 +19,7 @@ class SessionVisualizer(qtw.QWidget):
     req_frames = qtc.Signal(SignalPacket)
     req_datainfo = qtc.Signal(SignalPacket)
     prop_data_change = qtc.Signal(SignalPacket)
+    jump_to_frame = qtc.Signal(SignalPacket)
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -104,6 +89,7 @@ class SessionVisualizer(qtw.QWidget):
             imv = ImagesViewerView(name=oc)
             imv.req_instance.connect(self.request_data_sl)
             imv.req_frames.connect(self.request_frames_sl)
+            imv.jump_to_frame.connect(self._jump_to_frame_sl)
             self.view._add_images_viewer(oc, imv)
 
         for name, images_viewer in self.view._images_viewers.items():
@@ -111,6 +97,11 @@ class SessionVisualizer(qtw.QWidget):
 
         self.req_frames.emit(
             SignalPacket(sender=self.__class__.__name__, data=self.frame_ids)
+        )
+
+    def _jump_to_frame_sl(self, packet: SignalPacket):
+        self.jump_to_frame.emit(
+            SignalPacket(sender=self.__class__.__name__, data=packet.data)
         )
 
     def request_frames_sl(self, packet: SignalPacket):
@@ -166,50 +157,22 @@ class SessionVisualizer(qtw.QWidget):
     def data_update_sl(self, packet: SignalPacket):
         dui: DataUpdateInfo = packet.data
         if dui.added:
-            # CONT: From here. Make a function for this.
             self._add(dui.added)
-            if isinstance(dui.added, Instance):
-                for iv in self:
-                    if iv.labels_mapping(dui.added.track_id) is not None:
-                        iv.add(dui.added)
-            elif isinstance(dui.added, TrackedObject):
-                t_id = dui.added.track_id
-                for iv in self:
-                    if iv.name == dui.added.object_class:
-                        iv.add(dui.added)
-
-                # Update tracked_object
-                for iv in self:
-                    if iv.name != object_class:
-                        lm = iv.labels_mapping()
-                        print("*before:", lm)
-                        # Assuming `lm` is 0,1,..n
-                        add_lbl = None
-                        for lbl, t_id in lm:
-                            if t_id >= dui.deleted[0]:
-                                add_lbl = lbl
-                                break
-                        if add_lbl is not None:
-                            iv._update(label_keep=add_lbl - 1,
-                                    mode=1)
-                        print("*after:", iv.labels_mapping())
-            else:
-                raise ValueError(f"Do not support data {dui.added}")
-
         elif dui.deleted:
             self._delete(*dui.deleted)
-
         elif dui.replaced:
             pass
         elif dui.moved:
-            old_pos, obj = dui.moved
-            for iv in self:
-                lbl = iv.labels_mapping(old_pos[0])
-                if lbl is not None:
-                    iv.delete(lbl, old_pos[1])
-            for iv in self:
-                if iv.name == obj.object_class:
-                    iv.add(obj)
+            self._delete(*dui.moved[0])
+            self._add(dui.moved[1])
+            # old_pos, obj = dui.moved
+            # for iv in self:
+            #     lbl = iv.labels_mapping(old_pos[0])
+            #     if lbl is not None:
+            #         iv.delete(lbl, old_pos[1])
+            # for iv in self:
+            #     if iv.name == obj.object_class:
+            #         iv.add(obj)
 
     def _delete(self, t_id, ins_id):
         for iv in self:
@@ -224,7 +187,6 @@ class SessionVisualizer(qtw.QWidget):
         for iv in self:
             if iv.name != object_class:
                 lm = iv.labels_mapping()
-                # print("*before:", lm)
                 del_lbl = None
                 for nlbl, nt_id in lm:
                     if nt_id >= t_id:
@@ -233,7 +195,33 @@ class SessionVisualizer(qtw.QWidget):
                 if del_lbl is not None:
                     iv._update(label_keep=del_lbl - 1,
                                 mode=-1)
-                # print("*after:", iv.labels_mapping())
+
+    def _add(self, obj: Union[TrackedObject, Instance]):
+        if isinstance(obj, Instance):
+            for iv in self:
+                if iv.labels_mapping(obj.track_id) is not None:
+                    iv.add(obj)
+        elif isinstance(obj, TrackedObject):
+            t_id = obj.track_id
+            for iv in self:
+                if iv.name == obj.object_class:
+                    iv.add(obj)
+
+            # Update tracked_object
+            for iv in self:
+                if iv.name != obj.object_class:
+                    lm = iv.labels_mapping()
+                    # Assuming `lm` is 0,1,..n
+                    add_lbl = None
+                    for lbl, t_id in lm:
+                        if t_id >= obj.track_id:
+                            add_lbl = lbl
+                            break
+                    if add_lbl is not None:
+                        iv._update(label_keep=add_lbl - 1,
+                                mode=1)
+        else:
+            raise ValueError(f"Do not support data {obj}")
         
 
     @property

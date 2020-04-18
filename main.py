@@ -1,6 +1,6 @@
 import sys
 from PySide2 import QtWidgets as qtw
-from Masa.gui import VideoPlayer
+from Masa.gui.widgets.video_player import VideoPlayer
 from Masa.models.datahandler import DataHandler
 from Masa.apps.default import ImageExtractorApp
 

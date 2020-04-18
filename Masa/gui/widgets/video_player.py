@@ -22,6 +22,10 @@ class VideoPlayer(qtw.QWidget):
 
         self.layout_grid_main = qtw.QGridLayout()
         self.view = VideoPlayerView(width=self.buff.width, height=self.buff.height)
+
+        # CONT: From here
+        self.view.req_datahandler_info.connect(self.dh.get_datainfo_sl)
+
         self.layout_grid_main.addWidget(self.view, 0, 0)
         self.setLayout(self.layout_grid_main)
 
@@ -32,4 +36,8 @@ class VideoPlayer(qtw.QWidget):
         self.buff.curr_frame.connect(self.dh.propogate_curr_frame_data_sl)
         self.dh.curr_frame_data.connect(self.view.view.set_frame_data_sl)
 
+    def jump_frame_sl(self, packet):
+        self.jump_frame(packet.data)
 
+    def jump_frame(self, frame_id):
+        self.buff.get_frame(frame_id, straight_jump=True)

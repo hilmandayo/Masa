@@ -51,15 +51,15 @@ def convert_np(frame: np.ndarray, to: str = "qpixmap", scale: bool = True,
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     frame = np.require(frame, np.uint8, "C")
-    height, width, channel = frame.shape
+    y2, width, channel = frame.shape
     bytes_per_line = width * 3
     # XXX: For some reasons, we need to copy it here.
     #      If I do `frame = qtg.QPixmap.fromImage(frame.copy())`,
     #      we will still got bad result.
-    frame = qtg.QImage(frame.data, width, height, bytes_per_line, qtg.QImage.Format_RGB888).copy()
+    frame = qtg.QImage(frame.data, width, y2, bytes_per_line, qtg.QImage.Format_RGB888).copy()
     frame = qtg.QPixmap.fromImage(frame)
     if scale:
-        frame = frame.scaled(width, height)
+        frame = frame.scaled(width, y2)
 
     if to == "qpixmap":
         return frame
@@ -77,7 +77,7 @@ def resize_calculator(orig_width, orig_height,
             ratio = target_height / orig_height
             target_width = int(orig_width * ratio)
         else:
-            raise ValueError(f"Both `width` and `height` is not provided "
+            raise ValueError(f"Both `width` and `y2` is not provided "
                               "while `ratio` is True")
     else:
         if not target_width:
@@ -88,22 +88,85 @@ def resize_calculator(orig_width, orig_height,
     return target_width, target_height
 
 
+class BoundingBoxConverter:
+    @staticmethod
+    def edge_bb_to_center_bb(x1, y1, x2, y2,
+                             width_scale=None, height_scale=None, as_int=True):
+        x = (x1 + x2) / 2
+        y = (y1 + y2) / 2
+        width = abs(x2 - x1)
+        y2 = abs(y2 - y1)
 
-def resize(frame, width=None, height=None, ratio: bool = True,
+        if width_scale and height_scale:
+            x, width = int(x * width_scale), int(width * width_scale)
+            y, y2 = int(y * height_scale), int(y2 * height_scale)
+        if as_int:
+            x, width, y, y2 = int(x), int(width), int(y), int(y2)
+
+        return x, y, width, y2
+
+    @staticmethod
+    def center_bb_to_edge_bb(x, y, width, y2,
+                             width_scale=None, height_scale=None, as_int=True):
+        wc = width / 2
+        hc = y2 / 2
+        x1 = x - wc
+        x2 = x + wc
+        y1 = y - hc
+        y2 = y + hc
+
+
+        if width_scale and height_scale:
+            x1, x2 = int(x1 * width_scale), int(x2 * width_scale)
+            y1, y2 = int(y1 * height_scale), int(y2 * height_scale)
+        if as_int:
+            x1, x2, y1, y2 = int(x1), int(x2), int(y1), int(y2)
+
+        return x1, y1, x2, y2
+
+    @staticmethod
+    def calc_width_height(x1, y1, x2, y2,
+                          width_scale=None, height_scale=None, as_int=True):
+        width = abs(x2 - x1)
+        height = abs(y2 - y1)
+        if width_scale and height_scale:
+            x1, width = x1 * width_scale, width * width_scale
+            y1, height = y1 * height_scale, height * height_scale
+        if as_int:
+            x1, y1, width, height = int(x1), int(y1), int(width), int(height)
+
+        return x1, y1, width, height
+
+    @staticmethod
+    def calc_bottom_coord(x1, y1, width, height,
+                          width_scale=None, height_scale=None, as_int=True):
+        x2 = x1 + width
+        y2 = y1 + height
+        if width_scale and height_scale:
+            x1, x2 = x1 * width_scale, x2 * width_scale
+            y1, y2 = y1 * height_scale, y2 * height_scale
+        if as_int:
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
+        return x1, y1, x2, y2
+        
+
+
+def resize(frame, width=None, y2=None, ratio: bool = True,
            inter=cv2.INTER_CUBIC):
     """Resize frame.
 
     If `ratio` is `True`, the frame will be resized by using the value of width.
-    If `width` is not provided, `height` will be used.
+    If `width` is not provided, `y2` will be used.
 
     Raises
     ------
     ValueError
-        If `width` and `height` is not provided when `ratio` is `True`.
+        If `width` and `y2` is not provided when `ratio` is `True`.
     """
     orig_height, orig_width = frame.shape[:2]
-    width, height = resize_calculator(
-        orig_width, orig_height, target_width=width, target_height=height, ratio=ratio
+    width, y2 = resize_calculator(
+        orig_width, orig_height, target_width=width, target_height=y2, ratio=ratio
     )
 
-    return cv2.resize(frame, (width, height), interpolation=inter)
+    return cv2.resize(frame, (width, y2), interpolation=inter)

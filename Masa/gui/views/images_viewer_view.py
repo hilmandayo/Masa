@@ -8,16 +8,7 @@ import cv2
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 from Masa.core.data import Instance, TrackedObject
 from Masa.core.utils import convert_np, resize, SignalPacket, DataUpdateInfo
-
-try:
-    # relative import to prevent circular import error
-    from ...widgets.image_button import ImageButton
-except (ValueError, ImportError):
-    import sys
-    from pathlib import Path; _dir = Path(__file__).absolute().parent
-    sys.path.append(str(_dir.parent.parent / "widgets"))
-    from image_button import ImageButton
-    sys.path.append(str(_dir.parent.parent.parent.parent))
+from ..widgets.image_button import ImageButton
 
 
 # TODO: Can this be considered as `View`?
@@ -28,7 +19,7 @@ class ImagesViewerView(qtw.QWidget):
     TrackID - Images.
     """
     req_frames = qtc.Signal(SignalPacket)
-    jump_to = qtc.Signal(SignalPacket)
+    jump_to_frame = qtc.Signal(SignalPacket)
     update_data = qtc.Signal(SignalPacket)
     req_instance = qtc.Signal(SignalPacket)
 
@@ -130,7 +121,6 @@ class ImagesViewerView(qtw.QWidget):
                                 x2 = int(x2)
                                 y2 = int(y2)
                         crop = frame[y1:y2 + 1, x1: x2 + 1]
-                        cv2.imwrite(f"/tmp/{idx}.jpg", crop)
                         img_btn.set_np(crop)
 
     def __getitem__(self, idx):
@@ -171,8 +161,11 @@ class ImagesViewerView(qtw.QWidget):
             # Delete images
             self._delete_col(label, update=False)
 
-        # Delete label
+        # Take stretch and
+        # delete label
+        self._grid_map[label]["widget"].layout().takeAt(1)
         self._grid_map[label]["widget"].layout().itemAt(0).widget().deleteLater()
+        # self._grid_map[label]["widget"].layout().itemAt(1).widget().deleteLater()
         self.layout_grid.itemAt(label).widget().deleteLater()
         if update:
             self._update(label - 1, "delete")
@@ -182,7 +175,7 @@ class ImagesViewerView(qtw.QWidget):
         if col is None:
             col = len(row_info["image_buttons"]) - 1
         # TODO: Is this good thing???
-        row_info["widget"].layout().itemAt(col + 1).widget().deleteLater()
+        row_info["widget"].layout().itemAt(col + 2).widget().deleteLater()
         row_info["image_buttons"][col].deleteLater()
         del row_info["image_buttons"][col]
         if update:
@@ -247,8 +240,11 @@ class ImagesViewerView(qtw.QWidget):
                                     # label=label,
             )
             frame_ids.append(ins.frame_id)
-            image_btn.image_clicked.connect(
+            image_btn.right_clicked.connect(
                 self._request_instance_sl
+            )
+            image_btn.left_clicked.connect(
+                self._jump_to_frame_sl
             )
             image_btns.append(image_btn)
 
@@ -256,6 +252,11 @@ class ImagesViewerView(qtw.QWidget):
             self._add_tobj(label, image_btns)
         else:
             self._add_instance(label, image_btns)
+
+    def _jump_to_frame_sl(self, packet: SignalPacket):
+        self.jump_to_frame.emit(
+            SignalPacket(sender=self.__class__.__name__, data=packet.data)
+        )
 
     def _make_new_row(self, row_label, row_meta=None):
         if row_label in self._grid_map.keys():
@@ -265,7 +266,13 @@ class ImagesViewerView(qtw.QWidget):
         # TODO: Use QListWidget???
         # https://www.qtcentre.org/threads/33443-how-to-insert-one-widget-between-another-two-widgets-ina-a-list-of-widgets)
         row_widget.setLayout(qtw.QBoxLayout(qtw.QBoxLayout.LeftToRight))
-        row_widget.layout().addWidget(qtw.QLabel(str(row_label)))
+
+        info_widget = qtw.QWidget()
+        info_widget.setLayout(qtw.QBoxLayout(qtw.QBoxLayout.TopToBottom))
+        info_widget.layout().addWidget(qtw.QLabel(str(row_label)))
+
+        row_widget.layout().addWidget(info_widget)
+        row_widget.layout().addStretch()
         self.layout_grid.insertWidget(row_label, row_widget)
 
         self._grid_map[row_label] = {"widget": row_widget,
@@ -285,6 +292,9 @@ class ImagesViewerView(qtw.QWidget):
             # self._update(label)
         else:
             raise ValueError(f"Got label of {label}")
+
+        (self._grid_map[label]["widget"].layout().itemAt(0).widget().layout()
+         .addWidget(qtw.QLabel(f"<b>Track ID<\b>: {str(images[0].track_id)}")))
 
 
     def _append_tobj(self, label, images):
@@ -337,6 +347,7 @@ class ImagesViewerView(qtw.QWidget):
             if mode == "delete":
                 if label_keep == len(self._grid_map) - 2:
                     # We only deleted the end of `self._grid_map`.
+                    # Assuming _delete already handle everything.
                     del self._grid_map[label_keep + 1]
                     return
 
@@ -361,10 +372,23 @@ class ImagesViewerView(qtw.QWidget):
             for new_key, old_key in enumerate(
                     range(old_key_start, len(self._grid_map)), new_key_start):
                 row_info = self._grid_map[old_key]
-                row_info["widget"].layout().itemAt(0).widget().deleteLater()
-                row_info["widget"].layout().insertWidget(0, qtw.QLabel(str(new_key)))
+
+                info_widget = row_info["widget"].layout().itemAt(0).widget() # .deleteLater()
+
+
+                # row_info["widget"].layout().insertWidget(0, qtw.QLabel(str(new_key)))
                 new_grid_map[new_key] = row_info
                 self._update_col(row_info, update_track_id=update_track_id)
+
+                new_label = qtw.QLabel(str(new_key))
+                new_tid = qtw.QLabel(
+                    f'<b>Track ID<\b>: {str(row_info["image_buttons"][0].track_id)}'
+                )
+
+                info_widget.layout().itemAt(0).widget().deleteLater()
+                info_widget.layout().itemAt(1).widget().deleteLater()
+                info_widget.layout().addWidget(new_label)
+                info_widget.layout().addWidget(new_tid)
 
             self._grid_map = new_grid_map
 
@@ -374,7 +398,7 @@ class ImagesViewerView(qtw.QWidget):
 
     def _update_col(self, row_info, update_track_id: Optional[int] = None):
         for idx, img_btn in enumerate(row_info["image_buttons"]):
-            img_btn.instance_id = idx
+            img_btn.set_instance_id(idx)
             if isinstance(update_track_id, int):
                 img_btn.track_id += update_track_id
 

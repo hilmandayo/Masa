@@ -1,13 +1,7 @@
 from PySide2 import (QtWidgets as qtw, QtCore as qtc, QtGui as qtg)
 import numpy as np
 
-try:
-    from .buffer_render_view import BufferRenderView
-except (ImportError, ModuleNotFoundError):
-    # import sys
-    # from pathlib import Path; _dir = Path(__file__).absolute().parent
-    # sys.path.append(str(_dir.parent.parent / "widgets"))
-    from buffer_render_view import BufferRenderView
+from .buffer_render_view import BufferRenderView
 from Masa.core.utils import SignalPacket
 
 
@@ -23,6 +17,8 @@ class VideoPlayerView(qtw.QWidget):
     run_result = qtc.Signal()
     set_slider_length = qtc.Signal()
     backwarded = qtc.Signal(bool)
+    rect_changed = qtc.Signal(SignalPacket)
+    req_datahandler_info = qtc.Signal(SignalPacket)
 
     def __init__(self, parent=None, width: int = None, height: int = None):
         super().__init__(parent)
@@ -36,11 +32,21 @@ class VideoPlayerView(qtw.QWidget):
         self._init()
 
     def _set_widgets(self):
-        self.view = BufferRenderView(width=self.width, height=self.height)
+        self.view = BufferRenderView(width=self.width, height=self.height,
+                                     video_player=self)
+        self.view.rect_changed.connect(lambda x: print(x))
+
+        self.view.req_datahandler_info.connect(lambda packet: self.req_datahandler_info.emit(
+            SignalPacket(sender=packet.data.append(self.__class__.__main__),
+                         data=(None, None))
+        ))
+
         self.frames_label = qtw.QLabel()
         self.backward_btn = qtw.QPushButton()
         self.slider = qtw.QSlider(qtc.Qt.Horizontal)
         self.start_pause_btn = qtw.QToolButton()
+
+        self.req_datahandler_info.connect()
 
     def _optimize_widgets(self):
         self.start_pause_btn.setCheckable(True)
@@ -69,6 +75,9 @@ class VideoPlayerView(qtw.QWidget):
         self.layout.addWidget(self.slider, 2, 0, 1, 3)
         self.layout.addWidget(self.start_pause_btn, 2, 3, 1, 1)
         self.setLayout(self.layout)
+
+    def _on_rect_change(self, track_id, instance_id, x1, y1, x2, y2):
+        print("emit")
 
     def update_btn(self):
         is_play = self.start_pause_btn.isChecked()

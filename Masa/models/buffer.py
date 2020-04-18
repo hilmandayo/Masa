@@ -104,11 +104,16 @@ class Buffer(qtc.QThread):
         self.video_ended.emit(self.idx)
 
 
-    def get_frame(self, idx):
+    def get_frame(self, idx, straight_jump=False):
         self.idx = idx
         self.video.set(cv2.CAP_PROP_POS_FRAMES, self.idx)
 
-        return self.next_frame()
+        if straight_jump:
+            self.curr_frame.emit(
+                SignalPacket(sender="Buffer", data=(self.next_frame().copy(), self.idx))
+            )
+        else:
+            return self.next_frame()
 
 
     def get_frames(self, idxs: List[int]) -> List[Tuple[int, np.ndarray]]:
@@ -159,7 +164,6 @@ class Buffer(qtc.QThread):
         self.pause()
         packet = packet.data
         session = packet.session
-        # CONT from here
         s = self.SESSIONS[session](packet.s_data)
 
     def next_frame(self):
