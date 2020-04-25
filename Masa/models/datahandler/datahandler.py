@@ -1,4 +1,5 @@
 from collections import defaultdict
+from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 from typing import Union, List, Dict, Tuple
@@ -26,12 +27,10 @@ class DataHandler(qtc.QObject):
     data_updated = qtc.Signal(SignalPacket)
     pass_datainfo = qtc.Signal(SignalPacket)
     curr_frame_data = qtc.Signal(SignalPacket)
+    print_data = qtc.Signal(SignalPacket)
 
-    def __init__(self,
-                 input_file: Union[str, Path] = None,
-                 input_str: str = None,
-                 name: str = "DataHandler"):
-
+    def __init__(self, input_file: Union[str, Path] = None, input_str: str = None,
+                 backup_file: int = 3, autosave_step: int = 5):
         super().__init__()
         if not input_file and not input_str:
             raise ValueError(
@@ -39,16 +38,36 @@ class DataHandler(qtc.QObject):
             )
 
         self.input_file = input_file
+        self.input_meta = input_file.parent / f".meta_{input_file.stem}"
         self.input_str = input_str
+        self.backup_file = backup_file
+        self.autosave_step = autosave_step
+        self.change_count = 0
         if input_file:
             self.input_file = Path(input_file)
         else:
             self.input_str = input_str
         self.tracked_objs: Dict[int, TrackedObject] = {}
 
+        self._read_meta()
         self._read_from_input()
         self._fixed_head = "track_id object_class".split()
         self._update()
+
+    def _read_meta(self):
+        if not self.input_meta.exists():
+            raise ValueError(f"Cannot find meta file {self.input_meta}")
+
+        meta = qtc.QSettings(str(self.input_meta), qtc.QSettings.NativeFormat)
+        obj_cls_key = "object_classes"
+        scene_key = "scene"
+
+        self.scene = meta.value(scene_key)
+        self.all_object_classes = meta.value(obj_cls_key)
+        self.all_tags = {}
+        for key in meta.allKeys():
+            if key not in [obj_cls_key, scene_key]:
+                self.all_tags[key] = meta.value(key)
 
     def _read_from_input(self):
         """Read data from CSV."""
@@ -62,10 +81,11 @@ class DataHandler(qtc.QObject):
             csv_reader = csv.DictReader(f_csv)
             line_count = 0
             for instance in csv_reader:
-                tags = {}
                 new_instance: dict = {}
                 track_id = int(instance.pop("track_id"))
-                object_class = instance.pop("object")  # TEMP: Repair this
+                object_class = instance.pop("object_class")  # TEMP: Repair this
+                if object_class not in self.object_classes:
+                    raise ValueError(f"Class of {object_class} is not valid.")
                 for key in to_number:
                     if key == "frame_id":
                         new_instance[key] = int(float(instance.pop("frame_id")))
@@ -80,10 +100,20 @@ class DataHandler(qtc.QObject):
                             except ValueError as v:
                                 raise v(f"Cannot convert data of key {key}"
                                         "to `int` of `float`.")
-                # tags
-                for tag, val in instance.items():
-                    tags[tag] = val
+
+                # XXX: Forcing the tags...
+                tags = {}
+                for key in self.all_tags:
+                    val = instance[key]
+                    if val in self.all_tags[key]:
+                        tags[key] = val
+                    else:
+                        raise ValueError(f"Problem with tags of key: {key}, val: {val}")
                 new_instance["tags"] = tags
+
+                # for tag, val in instance.items():
+                #     tags[tag] = val
+                # new_instance["tags"] = tags
                 
                 if self.tracked_objs.get(track_id) is None:
                     # TODO: Should we use the internal methods?
@@ -131,11 +161,13 @@ class DataHandler(qtc.QObject):
 
     @property
     def object_classes(self):
-        return list(set(t_obj.object_class for t_obj in self.tracked_objs.values()))
+        return self.all_object_classes
+        # return list(set(t_obj.object_class for t_obj in self.tracked_objs.values()))
 
     @property
     def object_class_mapping(self):
-        obj_cls_map = defaultdict(list)
+        # obj_cls_map = defaultdict(list)
+        obj_cls_map = {obj_cls: [] for obj_cls in self.object_classes}
         for tobj in self.tracked_objs.values():
             obj_cls_map[tobj.object_class].append(tobj.track_id)
 
@@ -143,12 +175,15 @@ class DataHandler(qtc.QObject):
 
     @property
     def tags(self):
-        tags = defaultdict(set)
-        for tobj in self:
-            for tag, values in tobj.tags.items():
-                tags[tag] |= set(values)
+        if self.all_tags:
+            return self.all_tags
 
-        return {tag: list(vals) for tag, vals in tags.items()}
+        # tags = defaultdict(set)
+        # for tobj in self:
+        #     for tag, values in tobj.tags.items():
+        #         tags[tag] |= set(values)
+
+        # return {tag: list(vals) for tag, vals in tags.items()}
 
     def from_frame(self, frame_id, to: str = None) -> List[Instance]:
         ret = []
@@ -174,13 +209,34 @@ class DataHandler(qtc.QObject):
             pos: Tuple[int, int] = dui.deleted
             self.delete(*pos) # TODO: How to delete object??
         elif dui.replaced:
-            pass
+            self.replace(dui.replaced)
         elif dui.moved:
             self.move(*dui.moved)
             
 
         self._update()
-        print(self)
+        try:
+            # Assuming every data added and deleted is through this function,
+            # this will make sure our viewport is also updated.
+            framedata = FrameData(self.curr_frame, self.curr_index, self.from_frame(self.curr_index))
+            self.curr_frame_data.emit(
+                SignalPacket(sender=[*packet.sender, self.__class__.__name__],
+                             data=framedata)
+            )
+        except NameError:
+            # Haven't even started the buffer yet...
+            pass
+        # TODO: This determines autosave feature.
+        #       However, only valid on change based on slot. Make it better.
+
+        self.change_count += 1
+        if self.change_count >= self.autosave_step:
+            self.save()
+            self.change_count = 0
+
+        self.print_data.emit(
+            SignalPacket(sender=[self.__class__.__name__], data=self.__str__())
+        )
 
     def run_sresults_sl(self, curr_sresults: SignalPacket):
         """Receive result from current index of session.
@@ -241,8 +297,9 @@ class DataHandler(qtc.QObject):
 
     def get_datainfo_sl(self, packet: SignalPacket):
         data = self.get_datainfo(*packet.data)
+        packet.sender.append(self.__class__.__name__)
         self.pass_datainfo.emit(
-            SignalPacket(sender=self.__class__.__name__, data=data)
+            SignalPacket(sender=packet.sender, data=data)
         )
 
     def get_datainfo(self, track_id=None, instance_id=None):
@@ -254,7 +311,8 @@ class DataHandler(qtc.QObject):
         di = DataInfo(
             instance=instance,
             obj_classes=self.object_class_mapping,
-            tags=self.tags)
+            tags=self.tags
+        )
 
         return di
         
@@ -276,7 +334,9 @@ class DataHandler(qtc.QObject):
                              f"with len of {len(data)}is not supported.")
 
         dui = DataUpdateInfo(added=data)
-        self.data_updated.emit(SignalPacket(sender=self.__class__.__name__, data=dui))
+        self.data_updated.emit(
+            SignalPacket(sender=self.__class__.__name__, data=dui)
+        )
 
         return self
 
@@ -285,9 +345,11 @@ class DataHandler(qtc.QObject):
         self._delete_instance(*old_pos)
 
         # TODO: There must be a better way...
-        # CONT: Solve below logic
         if old_pos[0] <= obj.track_id and prev_len == len(self) + 1:
-            obj.track_id -= 1
+            try:
+                obj.change_track_id(obj.track_id - 1)
+            except AttributeError:
+                obj.track_id -= 1
 
         if isinstance(obj, TrackedObject):
             self._add_tobj(obj)
@@ -304,11 +366,24 @@ class DataHandler(qtc.QObject):
         for tobj in self:
             ret += f"\tTrackedObject ({tobj.track_id}, {tobj.object_class})\n"
             for ins in tobj:
-                ret += f"\t\tInstance {ins.instance_id}\n"
-                
-        return ret[:-1]
+                ret += f"\t\tInstance {ins.instance_id}:  "
+                tags = ""
+                for key, value in ins.tags.items():
+                    tags += f"{key}: {value}, "
+                ret += f"({tags.strip()[:-1]})\n"
+
+        return ret.strip()
         
-    def replace(self, instance):
+    def replace(self, instance: Union[Instance, dict]):
+        if isinstance(instance, dict):
+            pos = ["track_id", "instance_id"]
+            t_id, ins_id = instance[pos[0]], instance[pos[1]]
+            new = deepcopy(self[t_id][ins_id])
+            for key in instance:
+                if key not in pos:
+                    setattr(new, key, instance[key])
+            instance = new
+
         self._replace(instance)
 
         dui = DataUpdateInfo(replaced=instance)
@@ -320,7 +395,7 @@ class DataHandler(qtc.QObject):
         self._replace_instance(instance)
 
     def _replace_instance(self, instance):
-        self._delete_instance(instance.track_id, instance.instance_id)
+        self._delete_instance(instance.track_id, instance.instance_id, update=False)
         self._add_instance(instance)
 
     def _add_instance(self, instance):
@@ -331,20 +406,6 @@ class DataHandler(qtc.QObject):
         # The `append`, `insert` and how it is updated is handled by the
         # `TrackedObject` class.
         self.tracked_objs[instance.track_id].add_instance(instance)
-
-    # def _add_instances(self, data: List[Instance], emit_signal=True):
-    #     for d in data:
-    #         if not isinstance(d, Instance):
-    #             raise ValueError(f"Wrong data type passed: {type(data)}")
-    #         self._add_instance(d, emit_signal=False)
-    #     if emit_signal:
-    #         # self.added_instances.emit(
-    #         #     SignalPacket(sender=self.__class__.__name__, data=data)
-    #         # )
-    #         dui = DataUpdateInfo(added=data)
-    #         self.data_updated.emit(
-    #             SignalPacket(sender=self.__class__.__name__, data=dui)
-    #         )
 
     def _add_tobj(self, tobj):
         if len(tobj) != 1:
@@ -415,8 +476,9 @@ class DataHandler(qtc.QObject):
                 raise ValueError(f"`tobj_idx`={tobj_idx} does not exist")
             except IndexError:
                 raise ValueError(f"`instance_idx`={instance_idx} does not exist")
-            if len(self.tracked_objs[tobj_idx]) == 0:
-                self._delete(tobj_idx)
+            if update:
+                if len(self.tracked_objs[tobj_idx]) == 0:
+                    self._delete(tobj_idx)
         
     def _update(self, keep_until=None):
         """Make sure `self.tracked_objs` is always sorted with no missed number.
@@ -444,10 +506,42 @@ class DataHandler(qtc.QObject):
             for new_k, tobj in enumerate(old_tobjs.values(), keep_until + 1):
                 self.tracked_objs[new_k] = tobj.change_track_id(new_k)
 
+    def save(self):
+        # Backup file. ########################################################
+        for i in range(self.backup_file - 1, 0, -1):
+            b_file = self.input_file.parent / f".#{self.input_file.name}{i - 1}"
+            if b_file.exists():
+                b_file.rename(self.input_file.parent / f".#{self.input_file.name}{i}")
+        i = 0
+        (self.input_file.parent / f".#{self.input_file.name}{i}").write_text(
+            self.input_file.read_text()
+        )
+
+        # Write current data. #################################################
+        self.input_file.write_text(self._data_as_text())
+
+
+    def _data_as_text(self):
+        header = [
+        "frame_id", "track_id", "x1", "y1", "x2", "y2", "scene",
+        "object_class", *list(self.all_tags.keys())
+        ]
+
+        data = ",".join(header) + "\n"
+        for tobj in self:
+            for ins in tobj:
+                tags = ",".join([ins.tags[tag] for tag in self.all_tags.keys()])
+                data += (f"{ins.track_id},{ins.frame_id},"
+                         f"{ins.x1},{ins.y1},{ins.x2},"
+                         f"{ins.y2},{self.scene},{ins.object_class},{tags}"
+                         "\n")
+
+        return data[:-1]
+
     def propogate_curr_frame_data_sl(self, packet: SignalPacket):
-        # TODO: check the best way to pass ndarray
-        frame, index = packet.data
-        framedata = FrameData(frame, index, self.from_frame(index))
+        # TODO: check the best way to pass  ndarray
+        self.curr_frame, self.curr_index = packet.data
+        framedata = FrameData(self.curr_frame, self.curr_index, self.from_frame(self.curr_index))
         self.curr_frame_data.emit(
             SignalPacket(sender=self.__class__.__name__, data=framedata)
         )

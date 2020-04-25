@@ -1,7 +1,7 @@
 from PySide2 import (QtCore as qtc, QtGui as qtg, QtWidgets as qtw)
 
 try:
-    from Masa.core.utils import SignalPacket
+    from Masa.core.utils import SignalPacket, DataUpdateInfo
 except:
     import sys;
 
@@ -16,9 +16,10 @@ class VideoBufferScene(qtw.QGraphicsScene):
         super().__init__()
 
     def on_rect_change(self, track_id, instance_id, x1, y1, x2, y2):
-        self.rect_changed.emit(
-            SignalPacket(sender=self.__class__.__name__,
-                         data=(track_id, instance_id, x1, y1, x2, y2))
+        dui = DataUpdateInfo(
+            replaced=dict(track_id=track_id, instance_id=instance_id, x1=x1, y1=y1, x2=x2, y2=y2)
         )
-        # if self.view():
-        #     self.view().on_rect_change(self, track_id, instance_id, x1, y1, x2, y2)
+        self.rect_changed.emit(
+            SignalPacket(sender=[self.__class__.__name__],
+                         data=dui)
+        )

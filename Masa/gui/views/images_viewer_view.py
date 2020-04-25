@@ -35,11 +35,12 @@ class ImagesViewerView(qtw.QWidget):
         self._grid_map: Dict[dict] = {}
 
     def _set_widgets(self):
+        self.name_label = qtw.QLabel(f"Class: {self.name}")
         self.scroll = qtw.QScrollArea()
         self.grid_widget = qtw.QWidget()
 
     def _optimize_widgets(self):
-        self.scroll.setHorizontalScrollBarPolicy(qtc.Qt.ScrollBarAlwaysOff)
+        self.scroll.setHorizontalScrollBarPolicy(qtc.Qt.ScrollBarAsNeeded)
         self.scroll.setVerticalScrollBarPolicy(qtc.Qt.ScrollBarAsNeeded)
 
     def _set_layouts(self):
@@ -54,6 +55,7 @@ class ImagesViewerView(qtw.QWidget):
 
         # 'connect' each widget
         self.scroll.setWidgetResizable(True)
+        self.layout_main.addWidget(self.name_label)
         self.layout_main.addWidget(self.scroll)
         self.setLayout(self.layout_main)
 
@@ -75,7 +77,7 @@ class ImagesViewerView(qtw.QWidget):
 
     def request_frames(self):
         self.req_frames.emit(
-            SignalPacket(sender=self.__class__.__name__, data=self.frame_ids)
+            SignalPacket(sender=[self.__class__.__name__], data=self.frame_ids)
         )
 
     @property
@@ -92,11 +94,9 @@ class ImagesViewerView(qtw.QWidget):
         return len(self._grid_map.keys())
 
     def _request_instance_sl(self, packet: SignalPacket):
-        self._request_instance(packet.data)
-        
-    def _request_instance(self, pos: Tuple[int, int]):
         self.req_instance.emit(
-            SignalPacket(sender=self.__class__.__name__, data=pos)
+            SignalPacket(sender=[*packet.sender, self.__class__.__name__],
+                         data=packet.data)
         )
 
     def set_frames(self, frames: List[Tuple[int, np.ndarray]]):
@@ -132,61 +132,68 @@ class ImagesViewerView(qtw.QWidget):
     def req_delete(self, label: int, col: int = None):
         dui = DataUpdateInfo(delete=(label, col))
         self.update_data.emit(
-            SignalPacket(sender=self.__class__.__name__, data=dui)
+            SignalPacket(sender=[self.__class__.__name__], data=dui)
         )
 
-    def replace(self, label, instance: Instance, image=None):
+    def replace(self, new_instance):
+        row_info = self._grid_map[new_instance.track_id]
+        # Copied from delete method. There will be no update internally.
+        # TODO: Is this good thing???
+        row_info["widget"].layout().itemAt(col + 1).widget().deleteLater()
+        row_info["image_buttons"][col].deleteLater()
+        del row_info["image_buttons"][col]
+
+
         if image is None:
             image = self._grid_map[label]["image_buttons"][instance.instance_id]
         self._delete_col(label, instance.instance_id)
         self.add(label=label, instance=instance, image=image)
 
-    def move(self, old_pos: Tuple[int, int], new_label, instance: Instance):
-        img_btn = self._grid_map[old_pos[0]]["image_buttons"][old_pos[1]]
-        self._delete(old_pos[0], old_pos[1])
-        img_btn.change(label=new_label,
-                       instance_id=instance.instance_id,
-                       track_id=instance.track_id
-        )
-        self._replace(new_label, instance)
-
     def delete(self, label, col=None):
         if col is None:
-            self._delete_row(label)
+            ret = self._delete_row(label)
         else:
-            self._delete_col(label, col)
+            ret = self._delete_col(label, col)
+            
+        return ret
 
     def _delete_row(self, label: int, update=True):
         while self._grid_map[label]["image_buttons"]:
             # Delete images
             self._delete_col(label, update=False)
 
-        # Take stretch and
         # delete label
-        self._grid_map[label]["widget"].layout().takeAt(1)
-        self._grid_map[label]["widget"].layout().itemAt(0).widget().deleteLater()
+        # self._grid_map[label]["widget"].layout().takeAt(1)
+        self._grid_map[label]["widget"].layout().takeAt(0).widget().deleteLater()
         # self._grid_map[label]["widget"].layout().itemAt(1).widget().deleteLater()
-        self.layout_grid.itemAt(label).widget().deleteLater()
+        self.layout_grid.takeAt(label).widget().deleteLater()
         if update:
             self._update(label - 1, "delete")
+
+        # Quick hack
+        return "deleted_row"
 
     def _delete_col(self, label: int, col=None, update=True):
         row_info = self._grid_map[label]
         if col is None:
             col = len(row_info["image_buttons"]) - 1
         # TODO: Is this good thing???
-        row_info["widget"].layout().itemAt(col + 2).widget().deleteLater()
+        row_info["widget"].layout().itemAt(col + 1).widget().deleteLater()
         row_info["image_buttons"][col].deleteLater()
         del row_info["image_buttons"][col]
+
+        ret = "deleted_col"
         if update:
             if row_info["image_buttons"]:
                 self._update(label)
             else:
-                self._delete_row(label, update=True)
+                ret = self._delete_row(label, update=True)
+        return ret
 
     def labels_mapping(self, track_id=None):
         retval = [(label, row_info["image_buttons"][0].track_id)
-                  for label, row_info in self._grid_map.items()]
+                    for label, row_info in self._grid_map.items()]
+
         if track_id is not None:
             try:
                 idx = [r[1] for r in retval].index(track_id)
@@ -206,7 +213,7 @@ class ImagesViewerView(qtw.QWidget):
             frame_ids = [obj.frame_id]
 
         self.req_frames.emit(
-            SignalPacket(sender=self.__class__.__name__, data=frame_ids)
+            SignalPacket(sender=[self.__class__.__name__], data=frame_ids)
         )
 
         
@@ -255,7 +262,7 @@ class ImagesViewerView(qtw.QWidget):
 
     def _jump_to_frame_sl(self, packet: SignalPacket):
         self.jump_to_frame.emit(
-            SignalPacket(sender=self.__class__.__name__, data=packet.data)
+            SignalPacket(sender=[*packet.sender, self.__class__.__name__], data=packet.data)
         )
 
     def _make_new_row(self, row_label, row_meta=None):
@@ -272,13 +279,16 @@ class ImagesViewerView(qtw.QWidget):
         info_widget.layout().addWidget(qtw.QLabel(str(row_label)))
 
         row_widget.layout().addWidget(info_widget)
-        row_widget.layout().addStretch()
+        # row_widget.layout().addStretch()
         self.layout_grid.insertWidget(row_label, row_widget)
 
         self._grid_map[row_label] = {"widget": row_widget,
                                      "row_meta": row_meta,
                                      "col_meta": [],
                                      "image_buttons": []}
+
+        for i in range(self.layout_grid.count()):
+            r = self.layout_grid.itemAt(i)
 
 
     def _add_tobj(self, label: int, images):
@@ -335,7 +345,7 @@ class ImagesViewerView(qtw.QWidget):
 
     def _insert_instance(self, label, col, image):
         row = self._grid_map[label]
-        row["widget"].layout().insertWidget(col, image)
+        row["widget"].layout().insertWidget(col + 1, image)
         row["image_buttons"].insert(col, image)
 
     def _update(self,
@@ -369,11 +379,13 @@ class ImagesViewerView(qtw.QWidget):
                 old_key_start = label_keep + 1
                 update_track_id = mode
 
+            # CONT: Upadate the self.layout_grid object
             for new_key, old_key in enumerate(
                     range(old_key_start, len(self._grid_map)), new_key_start):
                 row_info = self._grid_map[old_key]
 
                 info_widget = row_info["widget"].layout().itemAt(0).widget() # .deleteLater()
+                _old_tid = row_info['image_buttons'][0].track_id
 
 
                 # row_info["widget"].layout().insertWidget(0, qtw.QLabel(str(new_key)))
@@ -389,8 +401,12 @@ class ImagesViewerView(qtw.QWidget):
                 info_widget.layout().itemAt(1).widget().deleteLater()
                 info_widget.layout().addWidget(new_label)
                 info_widget.layout().addWidget(new_tid)
+                _new_tid = row_info['image_buttons'][0].track_id
+                # print(f"Updated: label:{old_key} t_id:{_old_tid} -> label:{new_key} t_id{_new_tid}")
 
             self._grid_map = new_grid_map
+            # print("NEW")
+            # print(list(self._grid_map.keys()))
 
         else:
             row_info = self._grid_map[label_keep]
@@ -401,6 +417,11 @@ class ImagesViewerView(qtw.QWidget):
             img_btn.set_instance_id(idx)
             if isinstance(update_track_id, int):
                 img_btn.track_id += update_track_id
+
+        # widgets = row_info["widget"]
+        # while widgets.count() > 2:
+        #     widgets.layout().itemAt(widgets.count() - 1)
+
 
 if __name__ == "__main__":
     app = qtw.QApplication(sys.argv)

@@ -19,6 +19,7 @@ class BufferRenderView(qtw.QGraphicsView):
     set_class_name = qtc.Signal(str)
     rect_changed = qtc.Signal(SignalPacket)
     req_datahandler_info = qtc.Signal(SignalPacket)
+    prop_data_change = qtc.Signal(SignalPacket)
 
     def __init__(self, parent=None, width=None, height=None, video_player=None):
         super().__init__(parent)
@@ -29,13 +30,13 @@ class BufferRenderView(qtw.QGraphicsView):
         self.rect = None
         self.size_adjusted = False
         self.ratio = 1
-        print(self.width, self.height)
 
         # Variables for bonding box selection #################################
         self.bb_top_left = None
         self.bb_bottom_right = None
         self.curr_frame = None
         self.draw_box = False
+        self.repair_box = False
         self.current_selection = None
         self.brush_current = qtg.QBrush(qtg.QColor(10, 10, 100, 120))
 
@@ -52,12 +53,19 @@ class BufferRenderView(qtw.QGraphicsView):
         self.setAcceptDrops(True)
         # self.setScene(qtw.QGraphicsScene())
         scene = VideoBufferScene()
-        scene.rect_changed.emit(lambda x: self.rect_changed.emit(x))
+        scene.rect_changed.connect(
+            lambda packet: self.rect_changed.emit(
+                SignalPacket(sender=[*packet, self.__class__.__name__],
+                             data=packet.data)
+        ))
         self.setScene(scene)
 
-    def set_frame(self, frame=None):
+    def set_frame(self, frame=None, frame_id=None):
         if isinstance(frame, np.ndarray):
             self.curr_frame = frame.copy()
+        if frame_id is not None:
+            self.frame_id = frame_id
+
         curr_frame = convert_np(self.curr_frame, to="qpixmapitem")
         self.scene().addItem(curr_frame)
 
@@ -74,33 +82,35 @@ class BufferRenderView(qtw.QGraphicsView):
         ))
 
     def update_frame(self):
-        # get our image...
+        """Update frames during Box Selection."""
         self.scene().clear()
         self.set_frame()
         self.set_data()
-        # self.set_data()
 
         if self.draw_box:
-            # x1, y1 = self.bb_top_left.x(), self.bb_top_left.y()
-            # width, height = self.bb_bottom_right.x() - x1, self.bb_bottom_right.y() - y1
             x1, y1 = self.bb_top_left.x() / self.width, self.bb_top_left.y() / self.height
             x2, y2 = self.bb_bottom_right.x() / self.width, self.bb_bottom_right.y() / self.height
-            # x1, y1, x2, y2 = bbc.calc_bottom_coord(x1, y1, width, height, as_int=False)
             self.current_selection = GraphicsRectItem(x1, y1, x2, y2,
                                                       self.width, self.height)
             self.scene().addItem(self.current_selection)
 
-    def on_rect_change(self, track_id, instance_id, x1, y1, x2, y2):
-        if self.video_player:
-            self.video_player._on_rect_change(track_id, instance_id, x1, y1, x2, y2)
+    # def on_rect_change(self, track_id, instance_id, x1, y1, x2, y2):
+    #     if self.video_player:
+    #         self.video_player._on_rect_change(track_id, instance_id, x1, y1, x2, y2)
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        # TODO: make below reliable for out of 0 things
-        self.bb_top_left = event.pos()
-        self.bb_bottom_right = event.pos()
-        self.draw_box = True
-        self.update_frame()
+        if event.button() == qtc.Qt.MouseButton.RightButton:
+            self.draw_box = True
+            self.bb_top_left = event.pos()
+            self.bb_bottom_right = event.pos()
+            self.update_frame()
+
+        elif event.button() == qtc.Qt.MouseButton.LeftButton:
+            # We can actually straight handle the process of repairing boxes
+            # from here!!! Weird.
+            pass
+                
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
@@ -125,38 +135,44 @@ class BufferRenderView(qtw.QGraphicsView):
             else:
                 self.bb_bottom_right.setY(y)
 
-                print(self.bb_bottom_right)
             self.update_frame()
 
-    def _adding_new_sl(self):
-        ied = InstanceEditorDialog(di.instance, di.obj_classes, di.tags)
-        ied.prop_data_change.connect()
+    def _adding_new_sl(self, packet: SignalPacket):
+        di = packet.data
+        object_class = list(di.obj_classes.keys())[0]
+        try:
+            track_id = max(di.obj_classes[object_class])
+        except ValueError:
+            track_id = None
+        tags = {k: v[0] for k, v in di.tags.items()}
+        instance = Instance(
+            track_id=track_id, object_class=object_class, instance_id=None,
+            x1=self.current_selection.x1, y1=self.current_selection.y1,
+            x2=self.current_selection.x2, y2=self.current_selection.y2,
+            frame_id=self.frame_id, tags=tags
+        )
+        ied = InstanceEditorDialog(instance, di.obj_classes, di.tags, delete_btn=False,
+                                   add_only=True)
+        ied.prop_data_change.connect(self._propogate_data_change)
         ied.exec_()
 
-    # CONT: Make the slot
-    def mouseReleaseEvent(self, event):
-        super().mouseReleaseEvent(event)
-        self.req_datahandler_info.emit(
-            SignalPacket(sender=[self.__class__.__main__], data=(None, None))
+    def _propogate_data_change(self, packet: SignalPacket):
+        self.prop_data_change.emit(
+            SignalPacket(sender=[*packet.sender, self.__class__.__name__], data=packet.data)
         )
 
-        if self.class_name:
-            self.set_class_name.emit(self.class_name[0])
-            self.get_rect_coords()
-            _rect = self.current_selection.rect()
-            x1 = int(_rect.x())
-            y1 = int(_rect.y())
-            width = int(_rect.width())
-            height = int(_rect.height())
-            x2, y2 = x1 + width, y1 + height
-            self.rect = (x1, y1, x2, y2)
-            self.class_name.pop(0)
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
+        if self.draw_box:
+            self.req_datahandler_info.emit(
+                SignalPacket(sender=[self.__class__.__name__], data=(None, None))
+            )
 
-        self.draw_box = False
-        self.update_frame()
+            self.draw_box = False
+            self.update_frame()
 
     def add_manual_box(self):
-        pass # CONT
+        pass
 
     def sizeHint(self):
         return qtc.QSize(self.width, self.height)
@@ -176,7 +192,9 @@ class BufferRenderView(qtw.QGraphicsView):
 
     def set_frame_data_sl(self, packet: SignalPacket):
         framedata = packet.data
-        self.set_frame(framedata.frame)
+        self.scene().clear()
+
+        self.set_frame(framedata.frame, framedata.index)
 
         self.curr_data = []
         for d in framedata.data:

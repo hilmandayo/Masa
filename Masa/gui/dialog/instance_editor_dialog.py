@@ -11,12 +11,15 @@ class InstanceEditorDialog(qtw.QDialog):
     new = "NEW "
 
     def __init__(self, instance: Instance, obj_clsses_map: Dict[str, List[int]],
-                 tags: Dict[str, List[str]], parent=None):
+                 tags: Dict[str, List[str]], delete_btn=True, add_only=False,
+                 parent=None):
         super().__init__(parent=parent, modal=True)
         self.instance = deepcopy(instance)
         self.obj_clsses_map = obj_clsses_map
         self.tags = tags
         self.new_t_id = sum([len(t_id) for t_id in self.obj_clsses_map.values()])
+        self.delete_btn = delete_btn
+        self.add_only = add_only
 
         self._set_widgets()
         self._optimize_widgets()
@@ -25,6 +28,12 @@ class InstanceEditorDialog(qtw.QDialog):
 
     def _set_widgets(self):
         # Track ID ############################################################
+        # obj_cls = self.instance.object_class
+        # ins_id = self.instance.instance_id
+        # if obj_cls is None:
+        #     obj_cls = list(self.obj_clsses_map.keys())[0]
+        #     ins_id = None
+
         track_id_combo_box = qtw.QComboBox(editable=False)
         track_id_combo_box.addItems(
             [f"{self.new} Track ID"] + [str(i) for i in 
@@ -67,14 +76,26 @@ class InstanceEditorDialog(qtw.QDialog):
 
         self.btns = (qtw.QPushButton("Ok", clicked=self.accept),
                      qtw.QPushButton("Cancel", clicked=self.reject))
-        self.delete_btn = qtw.QPushButton("Delete", clicked=self.delete)
+        if self.delete_btn:
+            self.delete_btn = qtw.QPushButton("Delete", clicked=self.delete)
 
     def _optimize_widgets(self):
         # Set current `track_id`.
         # `instance_id` is set directly.
-        self.loc_boxes[0][1].setCurrentIndex(
-            self.loc_boxes[0][1].findText(str(self.instance.track_id))
-        )
+        # if self.instance:
+        #     t_id = self.loc_boxes[0][1].findText(str(self.instance.track_id))
+        #     obj_cls_idx = self.combo_boxes["object_class"][1].findText(self.instance.object_class)
+        # else:
+        #     t_id = 0
+        #     obj_cls_idx = self.combo_boxes["object_class"][1].findText(
+        #         list(self.obj_clsses_map.keys())[0])
+
+        if self.instance.track_id is None:
+            t_id = 0
+        else:
+            t_id = self.loc_boxes[0][1].findText(str(self.instance.track_id))
+
+        self.loc_boxes[0][1].setCurrentIndex(t_id)
 
         # Set current `object_class` and connect it's signal.
         self.combo_boxes["object_class"][1].setCurrentIndex(
@@ -88,9 +109,11 @@ class InstanceEditorDialog(qtw.QDialog):
         for key, (label, combo_box) in self.combo_boxes.items():
             if key == "object_class":
                 continue
-            combo_box.setCurrentIndex(
-                combo_box.findText(self.instance.tags.get(key, -1))
-            )
+            if self.instance:
+                combo_box.setCurrentIndex(
+                    combo_box.findText(self.instance.tags.get(key, -1)))
+            else:
+                combo_box.setCurrentIndex(0)
             combo_box.model().item(0).setEnabled(True)
 
     def _update_track_id_combo_box(self, obj_cls):
@@ -114,14 +137,15 @@ class InstanceEditorDialog(qtw.QDialog):
             self.layout().addRow(label, widget)
 
         self.layout().addRow(self.btns[0], self.btns[1])
-        self.layout().addRow(self.delete_btn)
+        if self.delete_btn:
+            self.layout().addRow(self.delete_btn)
 
     def delete(self):
         dui = DataUpdateInfo(
             deleted=(self.instance.track_id, self.instance.instance_id)
         )
         self.prop_data_change.emit(
-            SignalPacket(sender=self.__class__.__name__, data=dui)
+            SignalPacket(sender=[self.__class__.__name__], data=dui)
         )
         super().accept()
 
@@ -168,15 +192,19 @@ class InstanceEditorDialog(qtw.QDialog):
     def accept(self):
         data = self._make_new_data()
 
-        if isinstance(data, TrackedObject) or data.track_id != self.instance.track_id:
-            dui = DataUpdateInfo(
-                moved=((self.instance.track_id, self.instance.instance_id), data)
-            )
+        if self.add_only:
+            data.instance_id = -1
+            dui = DataUpdateInfo(added=data)
         else:
-            dui = DataUpdateInfo(replaced=data)
+            if isinstance(data, TrackedObject) or data.track_id != self.instance.track_id:
+                dui = DataUpdateInfo(
+                    moved=((self.instance.track_id, self.instance.instance_id), data)
+                )
+            else:
+                dui = DataUpdateInfo(replaced=data)
 
         self.prop_data_change.emit(
-            SignalPacket(sender=self.__class__.__name__, data=dui)
+            SignalPacket(sender=[self.__class__.__name__], data=dui)
         )
 
         super().accept()

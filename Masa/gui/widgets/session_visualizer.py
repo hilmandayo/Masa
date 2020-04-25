@@ -79,34 +79,45 @@ class SessionVisualizer(qtw.QWidget):
         self.set_frames(packet.data)
         
 
-    def init_data(self, tobjs: List[TrackedObject]):
+    def init_data(self, data_handler: DataHandler):
         # Signal must be connected for image acquisitions.
+        tobjs = data_handler[:]
         obj_cls_tobjs = defaultdict(list)
+
         for tobj in tobjs:
             obj_cls_tobjs[tobj.object_class].append(tobj)
 
-        for oc in obj_cls_tobjs.keys():
+        for oc in data_handler.object_classes:
             imv = ImagesViewerView(name=oc)
             imv.req_instance.connect(self.request_data_sl)
             imv.req_frames.connect(self.request_frames_sl)
             imv.jump_to_frame.connect(self._jump_to_frame_sl)
             self.view._add_images_viewer(oc, imv)
 
+        # for oc in obj_cls_tobjs.keys():
+        #     imv = ImagesViewerView(name=oc)
+        #     imv.req_instance.connect(self.request_data_sl)
+        #     imv.req_frames.connect(self.request_frames_sl)
+        #     imv.jump_to_frame.connect(self._jump_to_frame_sl)
+        #     self.view._add_images_viewer(oc, imv)
+
         for name, images_viewer in self.view._images_viewers.items():
             images_viewer.init_data(obj_cls_tobjs[name])
 
         self.req_frames.emit(
-            SignalPacket(sender=self.__class__.__name__, data=self.frame_ids)
+            SignalPacket(sender=[self.__class__.__name__], data=self.frame_ids)
         )
 
     def _jump_to_frame_sl(self, packet: SignalPacket):
         self.jump_to_frame.emit(
-            SignalPacket(sender=self.__class__.__name__, data=packet.data)
+            SignalPacket(sender=[*packet.sender, self.__class__.__name__],
+                         data=packet.data)
         )
 
     def request_frames_sl(self, packet: SignalPacket):
         self.req_frames.emit(
-            SignalPacket(sender=self.__class__.__name__, data=packet.data)
+            SignalPacket(sender=[*packet.sender, self.__class__.__name__],
+                         data=packet.data)
         )
         
 
@@ -127,7 +138,7 @@ class SessionVisualizer(qtw.QWidget):
         
     def request_data(self, pos: Tuple[int, int]):
         self.req_datainfo.emit(
-            SignalPacket(sender=self.__class__.__name__, data=pos)
+            SignalPacket(sender=[self.__class__.__name__], data=pos)
         )
 
     @property
@@ -140,18 +151,19 @@ class SessionVisualizer(qtw.QWidget):
         return {k: list(v) for k, v in tags.items()}
 
     def receive_datainfo_sl(self, packet: SignalPacket):
-        di = packet.data
-        if di.tobj is not None:
-            raise ValueError(f"Support for `TrackedObject` is not implemented yet.")
+        if self.__class__.__name__ in packet.sender:
+            di = packet.data
+            if di.tobj is not None:
+                raise ValueError(f"Support for `TrackedObject` is not implemented yet.")
 
-        ied = InstanceEditorDialog(di.instance, di.obj_classes, di.tags)
-        ied.prop_data_change.connect(self._propogate_data_change_sl)
-        ied.exec_()
+            ied = InstanceEditorDialog(di.instance, di.obj_classes, di.tags)
+            ied.prop_data_change.connect(self._propogate_data_change_sl)
+            ied.exec_()
 
     def _propogate_data_change_sl(self, packet: SignalPacket):
-        # CONT: Propagate this...
         self.prop_data_change.emit(
-            SignalPacket(sender=self.__class__.__name__, data=packet.data)
+            SignalPacket(sender=[*packet.sender, self.__class__.__name__],
+                         data=packet.data)
         )
 
     def data_update_sl(self, packet: SignalPacket):
@@ -161,45 +173,54 @@ class SessionVisualizer(qtw.QWidget):
         elif dui.deleted:
             self._delete(*dui.deleted)
         elif dui.replaced:
-            pass
+            if not isinstance(dui.replaced, Instance):
+                return ValueError(f"Only support replacing an Instance.")
+            self._add(dui.replaced)
+            self._delete(dui.replaced.track_id, dui.replaced.instance_id + 1,
+                         update_others=False)
         elif dui.moved:
             self._delete(*dui.moved[0])
             self._add(dui.moved[1])
-            # old_pos, obj = dui.moved
-            # for iv in self:
-            #     lbl = iv.labels_mapping(old_pos[0])
-            #     if lbl is not None:
-            #         iv.delete(lbl, old_pos[1])
-            # for iv in self:
-            #     if iv.name == obj.object_class:
-            #         iv.add(obj)
 
-    def _delete(self, t_id, ins_id):
+    def _replace(self, new_instance):
+        for iv in self:
+            lbl = iv.labels_mapping(new_instance.track_id)
+            if lbl is not None:
+                # iv.replace()
+                iv._delete_col(
+                    new_instance.track_id, new_instance.instance_id, update=False
+                )
+                iv._add(new_instance)
+
+    def _delete(self, t_id, ins_id, update_others=True):
         for iv in self:
             lbl = iv.labels_mapping(t_id)
             if lbl is not None:
                 # print("before:", iv.labels_mapping())
-                iv.delete(lbl, ins_id)
+                deleted = iv.delete(lbl, ins_id) # CONT: solve weather deleted row or not
                 object_class = iv.name
-                # print("after:", iv.labels_())
+                # print("after:", iv.labels_mapping())
 
         # Update tracked_object
-        for iv in self:
-            if iv.name != object_class:
-                lm = iv.labels_mapping()
-                del_lbl = None
-                for nlbl, nt_id in lm:
-                    if nt_id >= t_id:
-                        del_lbl = nlbl
-                        break
-                if del_lbl is not None:
-                    iv._update(label_keep=del_lbl - 1,
-                                mode=-1)
+        if update_others and deleted == "deleted_row":
+            for iv in self:
+                if iv.name != object_class:
+                    lm = iv.labels_mapping()
+                    del_lbl = None
+                    for nlbl, nt_id in lm:
+                        if nt_id >= t_id:
+                            del_lbl = nlbl
+                            break
+                    if del_lbl is not None:
+                        iv._update(label_keep=del_lbl - 1,
+                                    mode=-1)
 
     def _add(self, obj: Union[TrackedObject, Instance]):
         if isinstance(obj, Instance):
             for iv in self:
-                if iv.labels_mapping(obj.track_id) is not None:
+                out = iv.labels_mapping(obj.track_id)
+                # print(iv.name, obj.track_id, out)
+                if out is not None:
                     iv.add(obj)
         elif isinstance(obj, TrackedObject):
             t_id = obj.track_id

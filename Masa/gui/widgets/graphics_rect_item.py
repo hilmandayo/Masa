@@ -137,22 +137,19 @@ class GraphicsRectItem(qtw.QGraphicsRectItem):
         self.mouse_press_pos = None
         self.mouse_press_rect = None
 
-        # CONT: This seems fine. CONT from this
-        print(self.pos().x() + self.rect().left(), self.pos().y() + self.rect().top())
-
-        new_x1 = self.pos().x() + self.rect().left()
-        new_y1 = self.pos().y() + self.rect().top()
+        new_x1 = self.pos().x()
+        new_y1 = self.pos().y()
         new_x2 = new_x1 + self.rect().width()
         new_y2 = new_y1 + self.rect().height()
 
         self.x1, self.x2 = new_x1 / self.width_scale, new_x2 / self.width_scale
-        self.y1, self.y2 = new_y1 / self.width_scale, new_y2 / self.width_scale
+        self.y1, self.y2 = new_y1 / self.height_scale, new_y2 / self.height_scale
         
+        self.update()
         if self.scene():
             self.scene().on_rect_change(
                 self.track_id, self.instance_id, self.x1, self.y1, self.x2, self.y2
             )
-        self.update()
 
     def boundingRect(self):
         """

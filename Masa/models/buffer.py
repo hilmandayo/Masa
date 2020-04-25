@@ -1,3 +1,4 @@
+from math import ceil
 from pathlib import Path
 from typing import Union, List, Tuple
 import time
@@ -34,10 +35,11 @@ class Buffer(qtc.QThread):
     backwarded = qtc.Signal(bool)
     buffer_rect = qtc.Signal(tuple)
     curr_frame = qtc.Signal(SignalPacket)
+    fps_changed = qtc.Signal(SignalPacket)
 
     def __init__(self, video: Union[Path, str],
                  target_width=None, target_height=None, parent=None,
-                 ratio=True, backward=False, fps=60, **kwargs):
+                 ratio=True, backward=False, fps=30, **kwargs):
         super().__init__(parent=parent, **kwargs)
 
         self.video = cv2.VideoCapture(video)
@@ -53,14 +55,9 @@ class Buffer(qtc.QThread):
         # self.session = EpipolarTrack()
         self.backward = backward
         self.run_thread = True
-        self.fps = fps
+        self.default_fps = fps
+        self.fps = self.default_fps
         self._det_width_height(target_width, target_height, ratio)
-
-        # temp
-        from Masa.models import DataHandler
-        # self.dh = DataHandler("/dayo/sompo/nikaime/all_csvs/ishida/0000000002_20170814_152603_001.csv")
-        self.dh = DataHandler("/dayo/sompo/nikaime/results/intermediate_output/intemediate_output_final/0000000004_20181112_150211_001.csv")
-        # self.sessions = [BBSession(self.dh)]
 
     def _det_width_height(self, width, height, ratio):
         """Determine the width and height of the video.
@@ -103,7 +100,6 @@ class Buffer(qtc.QThread):
         self.pause()
         self.video_ended.emit(self.idx)
 
-
     def get_frame(self, idx, straight_jump=False):
         self.idx = idx
         self.video.set(cv2.CAP_PROP_POS_FRAMES, self.idx)
@@ -118,6 +114,8 @@ class Buffer(qtc.QThread):
 
     def get_frames(self, idxs: List[int]) -> List[Tuple[int, np.ndarray]]:
         self.pause()
+        old_idx = self.idx
+
         frames = []
         for idx in idxs:
             frame = self.get_frame(idx)
@@ -125,11 +123,11 @@ class Buffer(qtc.QThread):
             # _, frame = self.video.read()
             frames.append((idx, frame))
 
-        if self.idx is None:
-            _idx = 0
-        else:
-            _idx = self.idx
-        self.video.set(cv2.CAP_PROP_POS_FRAMES, _idx)
+        if old_idx is None:
+            old_idx = 0
+        self.idx = old_idx
+
+        self.video.set(cv2.CAP_PROP_POS_FRAMES, self.idx)
         # TODO: Is below legal if un-commented?
         # self.play()
         return frames
@@ -209,6 +207,7 @@ class Buffer(qtc.QThread):
 
     def run(self):
         while self.run_thread:
+            # print("run_thread", self.idx)
             while self._play:
                 # Keeping with our index keeping ##############################
                 self.update_idx()
@@ -252,6 +251,24 @@ class Buffer(qtc.QThread):
         # Give time for the `run` to completely stop
         time.sleep(0.2)
 
+    def increase_fps(self, factor):
+        self.fps = ceil(self.fps * (1 + factor) / factor)
+        self._fps_changed()
+
+    def decrease_fps(self, factor):
+        # Use `round` to make sure `fps` can be increased in `increase_fps`
+        self.fps = max(int(self.fps * (factor - 1) / factor), 3)
+        self._fps_changed()
+
+    def reset_fps(self):
+        self.fps = self.default_fps
+        self._fps_changed()
+
+    def _fps_changed(self):
+        self.fps_changed.emit(
+            SignalPacket(sender=[self.__class__.__name__], data=self.fps)
+        )
+
     def get_points(self, rect_pts):
         if rect_pts:
             x1, y1, x2, y2 = rect_pts
@@ -266,3 +283,4 @@ class Buffer(qtc.QThread):
             self.buffer_rect.emit(
                 (self.idx, self.frame, x1, y1, x2, y2)
             )
+ 
