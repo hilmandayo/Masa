@@ -3,9 +3,10 @@ from .images_viewer_view import ImagesViewerView
 
 
 class SessionsVisualizerView(qtw.QScrollArea):
-    def __init__(self, parent=None,):
+    def __init__(self, parent=None, cols=3):
         super().__init__(parent=parent)
         self._images_viewers = {}
+        self.cols = cols
 
         self._set_widgets()
         self._optimize_widgets()
@@ -17,6 +18,7 @@ class SessionsVisualizerView(qtw.QScrollArea):
 
     def _set_layouts(self):
         self.main_layout = qtw.QVBoxLayout()
+        self.main_layout.addLayout(qtw.QHBoxLayout())
 
     def _optimize_widgets(self):
         self.setHorizontalScrollBarPolicy(qtc.Qt.ScrollBarAlwaysOff)
@@ -32,7 +34,15 @@ class SessionsVisualizerView(qtw.QScrollArea):
 
     def _add_images_viewer(self, group: str, img_viewer: ImagesViewerView):
         """Add an ImagesViewerView object."""
-        self.main_layout.addWidget(img_viewer)
+        count = self.main_layout.count()
+        row_layout = self.main_layout.itemAt(count - 1)
+        if row_layout.count() >= self.cols:
+            row_layout = qtw.QHBoxLayout()
+            self.main_layout.addLayout(row_layout)
+
+        row_layout.addWidget(img_viewer)
+        # self.main_layout.addWidget(img_viewer)
+        # TODO: Check below connections with other classes
         self._images_viewers[group] = img_viewer
 
 

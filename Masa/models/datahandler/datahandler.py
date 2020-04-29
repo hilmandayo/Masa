@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Union, List, Dict, Tuple
 import csv
 
+import toml
 from PySide2 import QtCore as qtc
 
 from Masa.core.data import TrackedObject, Instance
@@ -38,7 +39,7 @@ class DataHandler(qtc.QObject):
             )
 
         self.input_file = input_file
-        self.input_meta = input_file.parent / f".meta_{input_file.stem}"
+        self.input_meta = input_file.parent / f".meta_{input_file.stem}.toml"
         self.input_str = input_str
         self.backup_file = backup_file
         self.autosave_step = autosave_step
@@ -58,16 +59,16 @@ class DataHandler(qtc.QObject):
         if not self.input_meta.exists():
             raise ValueError(f"Cannot find meta file {self.input_meta}")
 
-        meta = qtc.QSettings(str(self.input_meta), qtc.QSettings.NativeFormat)
+        meta = toml.load(self.input_meta)
         obj_cls_key = "object_classes"
         scene_key = "scene"
 
-        self.scene = meta.value(scene_key)
-        self.all_object_classes = meta.value(obj_cls_key)
+        self.scene = meta[scene_key]
+        self.all_object_classes = meta[obj_cls_key]
         self.all_tags = {}
-        for key in meta.allKeys():
+        for key in meta:
             if key not in [obj_cls_key, scene_key]:
-                self.all_tags[key] = meta.value(key)
+                self.all_tags[key] = meta[key]
 
     def _read_from_input(self):
         """Read data from CSV."""
@@ -506,7 +507,7 @@ class DataHandler(qtc.QObject):
             for new_k, tobj in enumerate(old_tobjs.values(), keep_until + 1):
                 self.tracked_objs[new_k] = tobj.change_track_id(new_k)
 
-    def save(self):
+    def save(self, manual_call=False):
         # Backup file. ########################################################
         for i in range(self.backup_file - 1, 0, -1):
             b_file = self.input_file.parent / f".#{self.input_file.name}{i - 1}"
@@ -519,6 +520,12 @@ class DataHandler(qtc.QObject):
 
         # Write current data. #################################################
         self.input_file.write_text(self._data_as_text())
+
+        if manual_call:
+            # Reset the autosave count if this function is called remotely
+            # (manually called).
+            self.change_count = 0
+        print("Saved (maybe automatically).")
 
 
     def _data_as_text(self):

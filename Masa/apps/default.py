@@ -46,6 +46,12 @@ class ImageExtractorApp(qtw.QMainWindow):
 
         self.debugger = qtw.QTextEdit(readOnly=True)
         data_handler.print_data.connect(self._update_data)
+
+        self.btn_save = qtw.QPushButton("Save",
+                                        clicked=lambda: data_handler.save(True))
+        # XXX: Not really a good way...
+        self.video_player.view.layout.addWidget(self.btn_save, 2, 4, 1, 1)
+
         self.set_shortcuts()
 
     def set_shortcuts(self):
@@ -77,6 +83,11 @@ class ImageExtractorApp(qtw.QMainWindow):
         back1f = qtw.QAction("Forward 1 Frame", self)
         back1f.setShortcut(qtg.QKeySequence("z"))
         back1f.triggered.connect(self.video_player.backward_one)
+
+        save = qtw.QAction("Save", self)
+        save.setShortcut(qtg.QKeySequence("C-s"))
+        save.triggered.connect(self.btn_save.click)
+
 
         menubar = self.menuBar()
         vid_menu = menubar.addMenu("Video")

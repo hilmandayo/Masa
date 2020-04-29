@@ -94,13 +94,6 @@ class SessionVisualizer(qtw.QWidget):
             imv.jump_to_frame.connect(self._jump_to_frame_sl)
             self.view._add_images_viewer(oc, imv)
 
-        # for oc in obj_cls_tobjs.keys():
-        #     imv = ImagesViewerView(name=oc)
-        #     imv.req_instance.connect(self.request_data_sl)
-        #     imv.req_frames.connect(self.request_frames_sl)
-        #     imv.jump_to_frame.connect(self._jump_to_frame_sl)
-        #     self.view._add_images_viewer(oc, imv)
-
         for name, images_viewer in self.view._images_viewers.items():
             images_viewer.init_data(obj_cls_tobjs[name])
 
