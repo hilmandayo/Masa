@@ -512,6 +512,10 @@ class DataHandler(qtc.QObject):
         for i in range(self.backup_file - 1, 0, -1):
             b_file = self.input_file.parent / f".#{self.input_file.name}{i - 1}"
             if b_file.exists():
+                # TODO: Make a better logic.
+                old_b_file = self.input_file.parent / f".#{self.input_file.name}{i}"
+                if old_b_file.exists():
+                    old_b_file.unlink()
                 b_file.rename(self.input_file.parent / f".#{self.input_file.name}{i}")
         i = 0
         (self.input_file.parent / f".#{self.input_file.name}{i}").write_text(
@@ -530,7 +534,7 @@ class DataHandler(qtc.QObject):
 
     def _data_as_text(self):
         header = [
-        "frame_id", "track_id", "x1", "y1", "x2", "y2", "scene",
+        "track_id", "frame_id", "x1", "y1", "x2", "y2", "scene",
         "object_class", *list(self.all_tags.keys())
         ]
 
