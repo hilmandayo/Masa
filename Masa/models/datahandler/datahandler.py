@@ -50,10 +50,25 @@ class DataHandler(qtc.QObject):
             self.input_str = input_str
         self.tracked_objs: Dict[int, TrackedObject] = {}
 
+        if self.input_file:
+            self._repair_csv()
+
         self._read_meta()
         self._read_from_input()
         self._fixed_head = "track_id object_class".split()
         self._update()
+
+    def _repair_csv(self):
+        """Temporary fix for broken csv."""
+        with self.input_file.open("r") as f:
+            header = f.readline().strip().split(",")
+            if header[0] == "frame_id" and header[1] == "track_id":
+                header[0] = "track_id"
+                header[1] = "frame_id"
+            data = f.read()
+        with self.input_file.open("w") as f:
+            f.write(f"{','.join(header)}\n{data}")
+
 
     def _read_meta(self):
         if not self.input_meta.exists():
