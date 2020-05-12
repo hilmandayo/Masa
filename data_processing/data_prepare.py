@@ -1,4 +1,4 @@
-"""Extract image into `data_ids/data/.extracted`."""
+"""Prepare data"""
 
 
 import argparse
@@ -7,16 +7,14 @@ import cv2
 import pandas as pd
 from shutil import rmtree
 
+import brambox as bb
+from data_processing import parser
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "-i", "--input", required=True, help="Path to root of `data_ids`"
-)
-args = vars(parser.parse_args())
 
-def main():
-    # for data_id in Path(args["input"]).iterdir():
-    for csv_file in Path(args["input"]).rglob("annotations.csv"):
+def data_prepare(dir_input):
+    dir_input = Path(dir_input)
+    csv_files = dir_input.rglob("annotations.csv")
+    for csv_file in csv_files:
         data_dir = csv_file.parent.parent / "data"
         video_file = list(data_dir.rglob("*.mp4"))
         if len(video_file) != 1:
@@ -36,7 +34,10 @@ def main():
 
         save_images(images, extracted_dir)
 
-    print("Finished!")
+    annos = bb.io.load(parser.RoadSceneAnnotationParser, csv_files, lambda x:x)
+    bb.io.save(annos, "pandas", dir_input.with_suffix(".h5"))
+
+    print(f"Data {dir_input} prepared successfully!")
 
 
 def extract_data(video_file, csv_file) -> dict:
