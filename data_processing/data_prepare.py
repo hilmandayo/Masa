@@ -11,9 +11,12 @@ import brambox as bb
 from data_processing import parser
 
 
-def data_prepare(dir_input):
+def prepare_data(dir_input):
     dir_input = Path(dir_input)
-    csv_files = dir_input.rglob("annotations.csv")
+    if not dir_input.exists():
+        raise ValueError(f"{dir_input} is not exists.")
+
+    csv_files = list(dir_input.rglob("annotations.csv"))
     for csv_file in csv_files:
         data_dir = csv_file.parent.parent / "data"
         video_file = list(data_dir.rglob("*.mp4"))

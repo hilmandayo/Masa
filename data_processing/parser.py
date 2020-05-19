@@ -22,7 +22,6 @@ class RoadSceneAnnotationParser(bb.io.parser.AnnotationParser):
         anno = data_id_path / "annotations" / "annotations.csv"
         assert anno.exists()
 
-        # orig_height, orig_width = cv2.VideoCapture(str(vid)).read()[1].shape[:2]
         # TODO: Record width and height of our data
         raw_data = raw_data.strip().split("\n")
         header = raw_data[0].split(",")
