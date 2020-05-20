@@ -12,9 +12,9 @@ import numpy as np
 class DummyAnnotationsFactory:
     """A factory that returns certain mock annotations data."""
     @staticmethod
-    def get_annotations(name, *args, **kwargs):
+    def get_annotations(name, **kwargs):
         if name == "simple_anno":
-            return SimpleAnnotations(*args, **kwargs)
+            return SimpleAnnotations(**kwargs)
 
 
 @dataclass

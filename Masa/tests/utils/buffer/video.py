@@ -12,14 +12,16 @@ import numpy as np
 class DummyBufferFactory:
     """A factory that returns certain mock video data."""
     @staticmethod
-    def get_buffer(name, *args, **kwargs):
+    def get_buffer(name, **kwargs):
         if name == "ocv_simple_tagged":
-            return OCVSimpleTaggedVideo(*args, **kwargs)
+            return OCVSimpleTaggedVideo(**kwargs)
 
 
 @dataclass
 class DummyBuffer(ABC):
+    """A class which every dummy buffer class need to inherit."""
     pass
+
 
 @dataclass
 class OpenCVVideoCapture(DummyBuffer):
@@ -76,20 +78,29 @@ class OpenCVVideoCapture(DummyBuffer):
 
     def set(self, flag: int, value: int):
         """Mimic OpenCV's VideoCapture `set`."""
-        if flag == cv2.cv2.CAP_PROP_POS_FRAMES:
+        if flag == cv2.CAP_PROP_POS_FRAMES:
             self.buff_idx = value
 
 
 @dataclass
 class OCVSimpleTaggedVideo(OpenCVVideoCapture):
+    # visualize: bool = False
     BLUE: int = field(init=False, default=0)
     GREEN: int = field(init=False, default=1)
     RED: int = field(init=False, default=2)
 
     def _read(self):
         buff = np.random.randint(
-            0, 255, size=[self.height, self.width, 3]
+            0, 256, [self.height, self.width, 3], np.uint8
         )
+        # if self.visualize:
+        #     cv2.putText(
+        #         buff, f"frame_id: {self.buff_idx}",
+        #         (int(self.width * 0.2), int(self.height * 0.7)),
+        #         cv2.FONT_HERSHEY_SIMPLEX,
+        #         3,
+        #         (255, 255, 255))
+
         buff[0, 0, :] = self.buff_idx
         buff[0, 1, :] = (self.BLUE, self.GREEN, self.RED)
 
