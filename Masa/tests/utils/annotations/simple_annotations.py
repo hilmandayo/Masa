@@ -1,9 +1,10 @@
 """Collections of mock annotations data for testing."""
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, InitVar
 from pathlib import Path
-from typing import List, Any, Union, Tuple, Optional
+from random import choice
+from typing import List, Any, Union, Tuple, Optional, Dict
 
 import numpy as np
 
@@ -15,6 +16,7 @@ class DummyAnnotationsFactory:
         if name == "simple_anno":
             return SimpleAnnotations(*args, **kwargs)
 
+
 @dataclass
 class DummyAnnotations:
     """A parent class that every annotations test data class should inherit.
@@ -23,6 +25,7 @@ class DummyAnnotations:
     `data` will always means the actual data that corresponds to the `head` and
     annotations will mean the `head` and `data` combined.
     """
+
 
 class SimpleAnnotationsF:
     """A class that provide simple annotations data.
@@ -36,7 +39,7 @@ class SimpleAnnotationsF:
 
         This mocks the header of a CSV file.
         """
-        return "track_id frame_id x1 y1 x2 y2 scene object view".split()
+        return "track_id frame_id x1 y1 x2 y2 scene object".split()
 
     @staticmethod
     def data(increase_track_id=None) -> List[List[Union[int, str]]]:
@@ -46,34 +49,30 @@ class SimpleAnnotationsF:
         """
         # TODO: Make it better
         retval =  [
-            [0, 35, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
-            [0, 37, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
-            [0, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
-            [1, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
-            [2, 45, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
-            [2, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
-            [2, 50, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
-            [3, 46, 10, 10, 20, 20, "road_scene", "red_traffic_light", "small"],
-            [3, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light", "middle"],
-            [3, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light", "large"],
-            [4, 55, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
-            [4, 58, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
-            [5, 1, 10, 10, 20, 20, "road_scene", "red_traffic_light", "far"],
-            [6, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
-            [7, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
-            [7, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light", "far"],
-            [8, 44, 10, 10, 20, 20, "road_scene", "green_traffic_light", "far"],
+            [0, 35, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [0, 37, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [0, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [1, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light"],
+            [2, 45, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [2, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [2, 50, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [3, 46, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [3, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [3, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [4, 55, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [4, 58, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [5, 1, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [6, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light"],
+            [7, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light"],
+            [7, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light"],
+            [8, 44, 10, 10, 20, 20, "road_scene", "green_traffic_light"],
             ]
-
-        if increase_track_id is not None:
-            for r in retval:
-                r[SimpleAnnotationsF.head().index("track_id")] += increase_track_id
 
         return retval
 
     @staticmethod
     # TODO: Correct return data format?
-    def data_per_instance() -> List[List[List[Union[int, str]]]]:
+    def data_per_object_id() -> List[List[List[Union[int, str]]]]:
         """Returns list of data, but with each list is grouped as a same instance."""
         # TODO: Make it more robust in terms of csv head order
         if SimpleAnnotationsF.head()[0] != "track_id":
@@ -91,36 +90,54 @@ class SimpleAnnotationsF:
         return ret_data
 
 
-
-# TODO: Make this as singleton
 @dataclass
 class SimpleAnnotations(DummyAnnotations):
-    increase_track_id: Optional[int] = None
+    increase_object_id: Optional[int] = None
+    tags: Dict[str, List[str]] = field(default_factory=defaultdict(list))
+
     _head: List[str] = field(init=False, default_factory=SimpleAnnotationsF.head)
     _data: List[Union[int, str]] = field(init=False)
-    _data_per_instance: List[List[Union[int, str]]] = field(
-        default_factory=SimpleAnnotationsF.data_per_instance
+    _data_per_object_id: List[List[Union[int, str]]] = field(
+        default_factory=SimpleAnnotationsF.data_per_object_id
     )
 
     def __post_init__(self):
         # any better way??
-        self._data = SimpleAnnotationsF.data(self.increase_track_id)
+        self._head += list(self.tags.keys())
 
-    def _get_data(self, per_instance=False):
-        if per_instance:
-            data = self._data_per_instance
-        else:
-            data = self._data
+        data = []
+        for d in SimpleAnnotationsF.data():
+            for values in self.tags.values():
+                d.append(choice(values))
+                d[self._head.index("track_id")] += self.increase_object_id
+                data.append(d)
+        self._data = data
+
+    def _get_data(self, per_object_id=False):
+        data = self._data
+
+        if per_object_id:
+            if self.head[0] != "track_id":
+                raise ValueError(f"The first element of `head` is not `track_id`: "
+                                f"{self.head}")
+
+            inter_data = defaultdict(list)
+            for d in data:
+                inter_data[d[0]].append(d)
+
+            data = []
+            for k, v in inter_data.items():
+                data.append(v)
 
         return data
 
     @property
     def data(self):
-        return self._get_data(per_instance=False)
+        return self._get_data(per_object_id=False)
 
     @property
-    def data_per_instance(self):
-        return self._get_data(per_instance=True)
+    def data_per_object_id(self):
+        return self._get_data(per_object_id=True)
 
     @property
     def head(self) -> List[str]:

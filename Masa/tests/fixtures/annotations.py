@@ -22,8 +22,8 @@ def simple_raw_annotations_loop(request):
 
 
 @pytest.fixture(name="s_anno_rli", scope="session",
-                params=simple_anno.data_per_instance)
-def simple_raw_annotations_loop_per_instance(request):
+                params=simple_anno.data_per_object_id)
+def simple_raw_annotations_loop_per_object_id(request):
     return simple_anno.head, request.param
 
 
@@ -54,8 +54,8 @@ def data_handler(s_anno_rf):
 # TODO: Change track_id and object
 TRACKED_OBJECT_CONSTANT_VARS = "track_id object".split()
 INSTANT_CONSTANT_VARS = "frame_id x1 y1 x2 y2".split()
-def tracked_objects_per_instance():
-    head, data = simple_anno.head, simple_anno.data_per_instance
+def tracked_objects_per_object_id():
+    head, data = simple_anno.head, simple_anno.data_per_object_id
     tobjs = []
     for d in data:
         tobj = None
@@ -109,6 +109,6 @@ def simple_tracked_object_loop(request):
     return request.param
 
 @pytest.fixture(name="s_tobj_instance_l", scope="function",
-                params=tracked_objects_per_instance())
+                params=tracked_objects_per_object_id())
 def simple_tracked_object_instance_loop(request):
     return request.param
