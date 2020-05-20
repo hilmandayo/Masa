@@ -29,7 +29,7 @@ class ImageButton(qtw.QWidget):
                  x1, y1, x2, y2, meta,
                  parent=None,
                  image: np.ndarray = None,
-                 width=320, height=320):
+                 width=100, height=100):
         super().__init__(parent=parent)
         self.track_id = track_id
         self.frame_id = frame_id
@@ -52,7 +52,7 @@ class ImageButton(qtw.QWidget):
         self.layout().addWidget(info_label)
 
         if image is None:
-            image = np.zeros([height, width, 3], dtype=np.uint8)
+            image = np.zeros([self.height, self.width, 3], dtype=np.uint8)
         self.set_np(image)
         self.set_instance_id(instance_id)
 
@@ -101,8 +101,8 @@ class ImageButton(qtw.QWidget):
         frame_icon = qtg.QIcon(image)
         image_btn.setIcon(frame_icon)
 
-        image_btn.setIconSize(qtc.QSize(width, height))
-        image_btn.setFixedSize(width, height)
+        image_btn.setIconSize(qtc.QSize(self.width, self.height))
+        image_btn.setFixedSize(self.width, self.height)
 
     def set_instance_id(self, instance_id):
         self.instance_id = instance_id
