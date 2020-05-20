@@ -169,7 +169,7 @@ class Buffer(qtc.QThread):
         if not ret:
             return
 
-        frame = cv2.resize(frame, (self.width,  self.height), interpolation=cv2.INTER_AREA)
+        frame = cv2.resize(frame, (self.width,  self.height), interpolation=cv2.INTER_CUBIC)
         return frame
 
     def update_idx(self):

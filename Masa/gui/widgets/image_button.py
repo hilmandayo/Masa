@@ -1,19 +1,12 @@
 from PySide2 import QtWidgets as qtw, QtGui as qtg, QtCore as qtc
+import cv2
 import numpy as np
 
-# For local testing.
-try:
-    from Masa.core.utils import convert_np, SignalPacket
-    # from Masa.gui.dialog import editor_dialog_factory
-except ModuleNotFoundError:
-    import sys;
-    from pathlib import Path; _dir = Path(__file__).absolute().parent
-    sys.path.append(str(_dir.parent.parent / "core" / "utils"))
-    from utils import convert_np
-    # sys.path.append(str(_dir.parent / "dialog" / "instance_editor_dialog"))
-    # from instance_editor_dialog import editor_dialog_factory
+from Masa.core.utils import convert_np, resize_calculator
+
 
 class QPushImageButton(qtw.QPushButton):
+    """A `QPushButton` that supports left and right mouse click."""
     right_clicked = qtc.Signal()
     left_clicked = qtc.Signal()
     def __init__(self, parent=None):
@@ -27,6 +20,7 @@ class QPushImageButton(qtw.QPushButton):
 
 
 class ImageButton(qtw.QWidget):
+    """A widget that represents a `QPushImageButton` with label at its bottom."""
     i_id_template = "<b>Instance ID<\b>: {}"
     left_clicked = qtc.Signal(SignalPacket)
     right_clicked = qtc.Signal(SignalPacket)
@@ -44,6 +38,8 @@ class ImageButton(qtw.QWidget):
         self.x2 = x2
         self.y2 = y2
         self.meta = meta
+        self.width = width
+        self.height = height
 
         image_btn = QPushImageButton()
         info_label = qtw.QLabel()
@@ -82,6 +78,23 @@ class ImageButton(qtw.QWidget):
     def set_np(self, image: np.ndarray):
         image_btn = self.layout().itemAt(0).widget()
         height, width = image.shape[:2]
+        if self.width >= self.height:
+            kwargs = {"target_width": self.width}
+        else:
+            kwargs = {"target_height": self.height}
+
+        width, height = resize_calculator(width, height, **kwargs)
+        image = cv2.resize(
+            image, (width, height), interpolation=cv2.INTER_CUBIC
+        )
+        canvas = np.zeros([self.height, self.width, 3], np.uint8)
+        if width == self.width:
+            entry_y = self.height - height // 2
+            canvas[entry_y:entry_y + height, ...] = image
+        else:
+            entry_x = self.width - width // 2
+            canvas[:, entry_x:entry_x + width, ...] = image
+
         # XXX: Weird, sometimes, even if `input_bgr` is False, it is still
         #      output OK.
         image = convert_np(image, to="qpixmap")
