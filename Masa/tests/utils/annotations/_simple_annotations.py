@@ -6,25 +6,8 @@ from pathlib import Path
 from random import choice
 from typing import List, Any, Union, Tuple, Optional, Dict
 
-import numpy as np
 
-
-class DummyAnnotationsFactory:
-    """A factory that returns certain mock annotations data."""
-    @staticmethod
-    def get_annotations(name, **kwargs):
-        if name == "simple_anno":
-            return SimpleAnnotations(**kwargs)
-
-
-@dataclass
-class DummyAnnotations:
-    """A parent class that every annotations test data class should inherit.
-
-    In this context, `head` will always means the metadata of the data,
-    `data` will always means the actual data that corresponds to the `head` and
-    annotations will mean the `head` and `data` combined.
-    """
+__all__ = ["SimpleAnnotations"]
 
 
 class SimpleAnnotationsF:
@@ -70,26 +53,6 @@ class SimpleAnnotationsF:
 
         return retval
 
-    @staticmethod
-    # TODO: Correct return data format?
-    def data_per_object_id() -> List[List[List[Union[int, str]]]]:
-        """Returns list of data, but with each list is grouped as a same instance."""
-        # TODO: Make it more robust in terms of csv head order
-        if SimpleAnnotationsF.head()[0] != "track_id":
-            raise ValueError(f"The first element of `head` is not `track_id`: "
-                             f"{SimpleAnnotationsF.head()}")
-
-        inter_data = defaultdict(list)
-        for data in SimpleAnnotationsF.data():
-            inter_data[data[0]].append(data)
-
-        ret_data = []
-        for k, v in inter_data.items():
-            ret_data.append(v)
-
-        return ret_data
-
-
 @dataclass
 class SimpleAnnotations(DummyAnnotations):
     increase_object_id: Optional[int] = None
@@ -97,9 +60,6 @@ class SimpleAnnotations(DummyAnnotations):
 
     _head: List[str] = field(init=False, default_factory=SimpleAnnotationsF.head)
     _data: List[Union[int, str]] = field(init=False)
-    _data_per_object_id: List[List[Union[int, str]]] = field(
-        default_factory=SimpleAnnotationsF.data_per_object_id
-    )
 
     def __post_init__(self):
         # any better way??

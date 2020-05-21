@@ -1,1 +1,1 @@
-from .simple_annotations import DummyAnnotationsFactory
+from .dummy_annotations import DummyAnnotationsFactory
