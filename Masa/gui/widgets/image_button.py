@@ -2,7 +2,7 @@ from PySide2 import QtWidgets as qtw, QtGui as qtg, QtCore as qtc
 import cv2
 import numpy as np
 
-from Masa.core.utils import convert_np, resize_calculator
+from Masa.core.utils import convert_np, resize_calculator, SignalPacket
 
 
 class QPushImageButton(qtw.QPushButton):
@@ -78,7 +78,7 @@ class ImageButton(qtw.QWidget):
     def set_np(self, image: np.ndarray):
         image_btn = self.layout().itemAt(0).widget()
         height, width = image.shape[:2]
-        if self.width >= self.height:
+        if width >= height:
             kwargs = {"target_width": self.width}
         else:
             kwargs = {"target_height": self.height}
@@ -89,15 +89,15 @@ class ImageButton(qtw.QWidget):
         )
         canvas = np.zeros([self.height, self.width, 3], np.uint8)
         if width == self.width:
-            entry_y = self.height - height // 2
+            entry_y = (self.height - height) // 2
             canvas[entry_y:entry_y + height, ...] = image
         else:
-            entry_x = self.width - width // 2
+            entry_x = (self.width - width) // 2
             canvas[:, entry_x:entry_x + width, ...] = image
 
         # XXX: Weird, sometimes, even if `input_bgr` is False, it is still
         #      output OK.
-        image = convert_np(image, to="qpixmap")
+        image = convert_np(canvas, to="qpixmap")
         frame_icon = qtg.QIcon(image)
         image_btn.setIcon(frame_icon)
 
@@ -111,8 +111,55 @@ class ImageButton(qtw.QWidget):
 
 
 if __name__ == '__main__':
+    import sys
+    # Import mock data for visualization
+    from Masa.tests.utils import DummyAnnotationsFactory, DummyBufferFactory
+    import cv2
+
+    anno = DummyAnnotationsFactory.get_annotations("simple_anno")
+    video = DummyBufferFactory.get_buffer("ocv_simple_tagged", length=100)
+    h = anno.head
+
     app = qtw.QApplication(sys.argv)
-    img_btn = ImageButton(np.zeros([250, 250, 3], np.uint8))
-    img_btn.show()
+    window = qtw.QWidget()
+    window.setLayout(qtw.QVBoxLayout())
+
+    max_show = 3
+    for idx, object_id in enumerate(anno.data_per_object_id):
+        # We want only show three rows of track_id.
+        if idx >= max_show:
+            break
+
+        # Every instance from a specific track_id will be shown horizontally.
+        h_layout = qtw.QHBoxLayout()
+        for i, instance in enumerate(object_id):
+            # Per instance_id of the track_id.
+            # Get needed information.
+            f_id = instance[h.index("frame_id")]
+            x1=instance[h.index("x1")]
+            y1=instance[h.index("y1")]
+            x2=instance[h.index("x2")]
+            y2=instance[h.index("y2")]
+
+            # Get frame and crop it based on the annotations.
+            video.set(cv2.CAP_PROP_POS_FRAMES, f_id)
+            ret, frame = video.read()
+            cropped = frame[y1:y2 + 1, x1:x2 + 1]
+
+            # The image button should resize the image appropriately.
+            img_btn = ImageButton(
+                track_id=instance[h.index("track_id")], instance_id=i,
+                frame_id=f_id,
+                x1=x1 / video.width,
+                y1=y1 / video.height,
+                x2=x2 / video.width,
+                y2=y2 / video.height,
+                meta=None,
+                image=cropped
+            )
+            h_layout.addWidget(img_btn)
+
+        window.layout().addLayout(h_layout)
+    window.show()
 
     sys.exit(app.exec_())

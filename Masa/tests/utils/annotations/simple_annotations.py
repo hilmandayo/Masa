@@ -50,11 +50,11 @@ class SimpleAnnotationsF:
         # TODO: Make it better
         retval =  [
             [0, 35, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
-            [0, 37, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [0, 37, 33, 10, 48, 20, "road_scene", "red_traffic_light"],
             [0, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
             [1, 44, 10, 10, 20, 20, "road_scene", "yellow_traffic_light"],
             [2, 45, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
-            [2, 48, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
+            [2, 48, 10, 10, 20, 36, "road_scene", "red_traffic_light"],
             [2, 50, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
             [3, 46, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
             [3, 33, 10, 10, 20, 20, "road_scene", "red_traffic_light"],
@@ -93,7 +93,7 @@ class SimpleAnnotationsF:
 @dataclass
 class SimpleAnnotations(DummyAnnotations):
     increase_object_id: Optional[int] = None
-    tags: Dict[str, List[str]] = field(default_factory=defaultdict(list))
+    tags: Dict[str, List[str]] = field(default_factory=lambda: defaultdict(list))
 
     _head: List[str] = field(init=False, default_factory=SimpleAnnotationsF.head)
     _data: List[Union[int, str]] = field(init=False)
@@ -110,7 +110,7 @@ class SimpleAnnotations(DummyAnnotations):
             for values in self.tags.values():
                 d.append(choice(values))
                 d[self._head.index("track_id")] += self.increase_object_id
-                data.append(d)
+            data.append(d)
         self._data = data
 
     def _get_data(self, per_object_id=False):
