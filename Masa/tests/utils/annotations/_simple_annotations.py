@@ -1,14 +1,15 @@
 """Collections of mock annotations data for testing."""
 
 from collections import defaultdict
-from dataclasses import dataclass, field, InitVar
+from dataclasses import dataclass, field
 from pathlib import Path
 from random import choice
-from typing import List, Any, Union, Tuple, Optional, Dict
+from typing import List, Union, Tuple, Optional, Dict
+
+from ._dummy_annotations import DummyAnnotations
 
 
 __all__ = ["SimpleAnnotations"]
-
 
 class SimpleAnnotationsF:
     """A class that provide simple annotations data.

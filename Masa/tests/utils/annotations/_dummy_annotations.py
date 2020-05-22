@@ -1,12 +1,7 @@
+from dataclasses import dataclass, field
+from typing import List
+
 from Masa.core.data import TrackedObject
-
-
-class DummyAnnotationsFactory:
-    """A factory that returns certain mock annotations data."""
-    @staticmethod
-    def get_annotations(name, **kwargs):
-        if name == "simple_anno":
-            return SimpleAnnotations(**kwargs)
 
 
 @dataclass
