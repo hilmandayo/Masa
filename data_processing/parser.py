@@ -48,9 +48,9 @@ class RoadSceneAnnotationParser(bb.io.parser.AnnotationParser):
                 x_top_left=x1, y_top_left=y1,
                 width=width, height=height,
                 distance = data[header.index("distance")],
-                # ignore = (True if
-                #           data[header.index("distance")] in self.to_ignore
-                #           else False)
+                ignore = (True if
+                          data[header.index("distance")] in self.to_ignore
+                          else False)
             )
 
     def serialize(self, df):
