@@ -9,7 +9,7 @@ from data_processing.data_prepare import prepare_data
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataid" "-d", default=None)
+parser.add_argument("--dataid", "-d", default=None)
 parser.add_argument("--prepare-data", "-p",
                     help="Prepare data for a Data ID", default=None)
 
