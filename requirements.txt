@@ -5,7 +5,7 @@ numpy==1.18.3
 opencv-python==4.2.0.34
 packaging==20.3
 pluggy==0.13.1
-py==1.8.1
+py==1.10.0
 pyparsing==2.4.7
 PySide2==5.14.2.1
 pytest==5.4.1
